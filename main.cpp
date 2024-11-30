@@ -2,44 +2,54 @@
 #include <iostream>
 
 // Constants
-const double SIMULATION_TIME = 10; // Total simulation time in seconds
+const double SIMULATION_TIME = 100; // Total simulation time in seconds
 
 const double MINING_TIME = 2.0;   // Time to mine iron ore
 const double SMELTING_TIME = 0.6; // Time to smelt iron ore into an iron plate
 const double WATER_PROCESS_TIME = 1.0;      // Time to process 200 units of water
 const double PUMPJACK_PROCESS_TIME = 1.0;  // Time for the pumpjack to process oil (1 second)
 const double OIL_REFINING_TIME = 5.0;       // Time to refine crude oil into petroleum gas
-
+const double CH_PLANT_TIME = 1.0;
 
 const int WATER_UNIT_BATCH = 1200;     // Number of units of water processed per time unit
 const int CRUDE_OIL_BATCH = 100;          // Amount of crude oil produced per batch
 const int PETROLEUM_GAS_BATCH = 45;         // Amount of petroleum gas produced per refining process
+const int SULFUR_BATCH = 2;
 
 const int  MIN_CRUDE_OIL_FOR_GAS = 100;
+const int  MIN_WATER_FOR_SULFUR = 30;
+const int  MIN_GAS_FOR_SULFUR = 30;
 
 const int NUM_FURNACES = 1;       // Number of furnaces
 const int NUM_DRILLS = 4;         // Number of mining drills
 const int NUM_WATER_PUMPS = 1;
 const int NUM_PUMPJACKS = 1;
 const int NUM_OIL_REFINERIES = 1;           // Number of oil refineries
+const int NUM_CH_PLANTS = 1;
 
 
 // Global variables
 int iron_ore_mined = 0;           // Counter for mined iron ore
 int iron_ore_left = 0;           // Counter for mined iron ore left at the end of the simulation
+
 int iron_plates_produced = 0;      // Counter for smelted iron plates
-int water_units_processed = 0;    // Counter for processed water units
+int water_units_produced = 0;    // Counter for processed water units
+int water_units_left = 0;
+
 int crude_oil_produced = 0;               // Counter for total crude oil produced
 int crude_oil_left = 0;               // Counter for crude oil left at the end of the simulation
-int petroleum_gas_produced = 0;             // Counter for total petroleum gas produced
 
+int petroleum_gas_produced = 0;             // Counter for total petroleum gas produced
+int petroleum_gas_left = 0;
+
+int sulfur_produced = 0;
 
 // Queue
 Queue ironOreQueue("Iron Ore Queue");
 Queue ironPlateQueue("Iron Plate Queue");
 Queue waterQueue("Water Queue");
 Queue crudeOilQueue("Crude Oil Queue");
-Queue petroleumGasQueue("Petroleum Gas Queue");
+Queue sulfurQueue("Sulfur Queue");
 
 
 // Store
@@ -48,13 +58,43 @@ Store electricalFurnaces("Electrical Furnaces", NUM_FURNACES); // Store for furn
 Store waterWellPump("Water Well Pump", NUM_WATER_PUMPS);    // Store for water well pumps
 Store pumpjack("Pumpjack", NUM_PUMPJACKS);    // Store for pumpjacks
 Store oilRefinery("Oil Refinery", NUM_OIL_REFINERIES); // Store for oil refineries
+Store chemicalPlant("Chemical Plant", NUM_CH_PLANTS);
 
 
-class PetroleumGasBatchProcess  : public Process {
+class SulfurProcess : public Process {
     void Behavior() override {
         // This process doesn't perform any actions itself
     }
 };
+
+class SulfurProductionProcess : public Process {
+    void Behavior() override {
+        water_units_left -= MIN_WATER_FOR_SULFUR;
+        petroleum_gas_left-= MIN_GAS_FOR_SULFUR;
+
+        auto *water = waterQueue.GetFirst();
+        delete water;
+
+        // Seize the chemical plant
+        Enter(chemicalPlant);
+        Wait(CH_PLANT_TIME); // Chemical processing time
+        Leave(chemicalPlant);
+
+        // Create sulfur and add it to the sulfur queue
+        auto *sulfur = new SulfurProcess();
+        sulfurQueue.Insert(sulfur);
+        sulfur_produced += SULFUR_BATCH;
+
+        std::cout << "Sulfur produced and added to the queue. Total sulfur: "
+                  << sulfurQueue.Length() << " units.\n";
+
+        // Check again if more resources are available for another sulfur process
+        if (Time + CH_PLANT_TIME <= SIMULATION_TIME && water_units_left >= MIN_WATER_FOR_SULFUR && petroleum_gas_left >= MIN_GAS_FOR_SULFUR && chemicalPlant.Free() > 0) {
+            (new SulfurProductionProcess())->Activate();
+        }
+    }
+};
+
 
 class CrudeOilBatchProcess  : public Process {
     void Behavior() override {
@@ -73,10 +113,8 @@ class OilRefiningProcess : public Process {
         Wait(OIL_REFINING_TIME);       // Refining takes 5 seconds
         Leave(oilRefinery);            // Release the oil refinery
 
-        // Create a petroleum gas batch and insert it into the queue
-        auto *gasBatch = new PetroleumGasBatchProcess();
-        petroleumGasQueue.Insert(gasBatch); // Insert the batch into the petroleum gas queue
         petroleum_gas_produced += PETROLEUM_GAS_BATCH; // Increment petroleum gas production counter
+        petroleum_gas_left += PETROLEUM_GAS_BATCH;
 
         //std::cout << "Petroleum gas produced: " << petroleum_gas_produced << " units.\n";
 
@@ -122,10 +160,16 @@ class WaterProductionProcess : public Process {
 
         auto *waterBatch = new WaterBatchProcess(); // Create a unique water batch process
         waterQueue.Insert(waterBatch);              // Insert the batch into the water queue
-        water_units_processed += WATER_UNIT_BATCH;  // Increment the processed water units counter
+        water_units_produced += WATER_UNIT_BATCH;  // Increment the processed water units counter
+        water_units_left += WATER_UNIT_BATCH;
 
         //std::cout << "Water batch processed and added to the queue. Total water units processed: "
-        //          << water_units_processed << "\n";
+        //          << water_units_produced << "\n";
+
+        // Activate sulfur production if conditions are met
+        if (Time + CH_PLANT_TIME <= SIMULATION_TIME && water_units_left >= MIN_WATER_FOR_SULFUR && petroleum_gas_left >= MIN_GAS_FOR_SULFUR && chemicalPlant.Free() > 0) {
+            (new SulfurProductionProcess())->Activate();
+        }
 
         // Activate the next water production process
         if (Time + WATER_PROCESS_TIME < SIMULATION_TIME) {
@@ -263,13 +307,23 @@ int main() {
     Run();
 
     // Print results
-    std::cout << "Simulation finished. Iron Ore mined during the simulation time:: " << iron_ore_mined << "\n";
-    std::cout << "Simulation finished. Total iron ore left: " << iron_ore_left << " units.\n";
-    std::cout << "Simulation finished. Iron Plates created: " << iron_plates_produced << "\n";
-    std::cout << "Simulation finished. Water units processed during the simulation time:: " << water_units_processed << "\n";
-    std::cout << "Simulation finished. Total crude oil produced during the simulation time: " << crude_oil_produced << " units.\n";
-    std::cout << "Simulation finished. Total crude oil left: " << crude_oil_left << " units.\n";
-    std::cout << "Simulation finished. Total petroleum gas produced: " << petroleum_gas_produced << " units.\n";
+    std::cout << "Simulation finished \n";
+
+    std::cout << "Iron Ore mined during the simulation time:: " << iron_ore_mined << "\n";
+    std::cout << "Total iron ore left: " << iron_ore_left << " units.\n";
+
+    std::cout << "Iron Plates created: " << iron_plates_produced << "\n";
+
+    std::cout << "Water units processed during the simulation time:: " << water_units_produced << "\n";
+    std::cout << "Water unitss left: " << water_units_left << " units.\n";
+
+    std::cout << "Total crude oil produced during the simulation time: " << crude_oil_produced << " units.\n";
+    std::cout << "Total crude oil left: " << crude_oil_left << " units.\n";
+
+    std::cout << "Total petroleum gas produced: " << petroleum_gas_produced << " units.\n";
+    std::cout << "Total petroleum gas left: " << petroleum_gas_left << " units.\n";
+
+    std::cout << "Total sulfur produces: " << sulfur_produced << " units.\n";
 
     oilRefinery.Output();
     pumpjack.Output();
