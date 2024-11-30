@@ -6,7 +6,7 @@ const double MINING_TIME = 2.0;   // Time to mine iron ore
 const double SMELTING_TIME = 0.6; // Time to smelt iron ore into an iron plate
 const double SIMULATION_TIME = 10; // Total simulation time in seconds
 const double WATER_PROCESS_TIME = 1.0;      // Time to process 200 units of water
-const int WATER_UNIT_BATCH = 200;     // Number of units of water processed per time unit
+const int WATER_UNIT_BATCH = 1200;     // Number of units of water processed per time unit
 
 
 const int NUM_FURNACES = 1;       // Number of furnaces
@@ -145,6 +145,16 @@ class WaterProductionGenerator : public Event {
     }
 };
 
+void best_values(){
+
+    int mine_ore = SIMULATION_TIME / MINING_TIME * NUM_DRILLS;
+    int smelt_ore = (SIMULATION_TIME-MINING_TIME) /SMELTING_TIME * NUM_FURNACES;
+    int water = SIMULATION_TIME * WATER_UNIT_BATCH * NUM_WATER_PUMPS;
+    std::cout << "Best values: \n";
+    std::cout << "Mining ore: " << mine_ore << "\n";
+    std::cout << "Smelting ore: " << smelt_ore << "\n";
+    std::cout << "Water: " << water << "\n";
+}
 // Main function
 int main() {
     // Initialize simulation
@@ -165,6 +175,6 @@ int main() {
     miningDrills.Output();
     electricalFurnaces.Output();
     waterWellPump.Output();
-
+    best_values();
     return 0;
 }
