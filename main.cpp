@@ -2,155 +2,120 @@
 #include <iostream>
 
 // Constants
-const double ARRIVAL_INTERVAL = 5.0;   // Interval for resource arrivals
-const double IRON_PLATE_TIME = 3.5;    // Processing time for iron ore
-const double COPPER_PLATE_TIME = 3.5;  // Processing time for copper ore
-const double CIRCUIT_TIME = 0.5;       // Assembly time for electronic circuits
-const double ADV_CIRCUIT_TIME = 6.0;   // Assembly time for advanced circuits
-const double PROCESSOR_TIME = 10.0;    // Assembly time for a processor
-const int TOTAL_PROCESSORS = 10;       // Total number of processors to assemble
+const double MINING_TIME = 2.0;   // Time to mine iron ore
+const double SMELTING_TIME = 0.6;   // Time to smelt iron ore into an iron plate
+const double SIMULATION_TIME = 100; // Total simulation time in seconds
+
 
 // Global variables
-int processors_created = 0;            // Counter for assembled processors
+int iron_ore_mined = 0;           // Counter for mined iron ore
+int iron_plates_created = 0;         // Counter for smelted iron plates
 
-// Resource queues
+// Queue
 Queue ironOreQueue("Iron Ore Queue");
-Queue copperOreQueue("Copper Ore Queue");
 Queue ironPlateQueue("Iron Plate Queue");
-Queue copperPlateQueue("Copper Plate Queue");
-Queue circuitQueue("Electronic Circuit Queue");
-Queue advCircuitQueue("Advanced Circuit Queue");
 
-// Facilities
-Facility ironSmelter("Iron Smelter");
-Facility copperSmelter("Copper Smelter");
-Facility circuitAssembler("Electronic Circuit Assembler");
-Facility advCircuitAssembler("Advanced Circuit Assembler");
-Facility processorAssembler("Processor Assembler");
+// Facility
+Facility miningDrill("Electric Mining Drill");
+Facility electricalFurnace("Electrical Furnace");
 
-
-// Process class: Processor Assembly
-class ProcessorProcess : public Process {
+// Dummy process class for smelted iron plates
+class PlateProcess : public Process {
     void Behavior() override {
-        if (!advCircuitQueue.Empty() && !circuitQueue.Empty()) {
-            std::cout << "Activating ProcessorProcess\n";
-            advCircuitQueue.GetFirst();
-            circuitQueue.GetFirst();
-            Seize(processorAssembler);
-            Wait(PROCESSOR_TIME);
-            Release(processorAssembler);
-            processors_created++;
-            std::cout << "Processor assembled. Total: " << processors_created << "\n";
-        } else {
-            std::cout << "ProcessorProcess conditions not met\n";
-        }
+        // This process doesn't perform any actions
     }
 };
 
-// Process class: Advanced Circuit Assembly
-class AdvCircuitProcess : public Process {
-    void Behavior() override {
-        if (!circuitQueue.Empty() && !copperPlateQueue.Empty()) {
-            std::cout << "Activating AdvCircuitProcess\n";
-            circuitQueue.GetFirst();
-            copperPlateQueue.GetFirst();
-            Seize(advCircuitAssembler);
-            Wait(ADV_CIRCUIT_TIME);
-            Release(advCircuitAssembler);
-            (new ProcessorProcess())->Activate(); // Activate processor assembly
-        } else {
-            std::cout << "AdvCircuitProcess conditions not met\n";
-        }
-    }
-};
-
-
-// Process class: Electronic Circuit Assembly
-class CircuitProcess : public Process {
-    void Behavior() override {
-        if (!ironPlateQueue.Empty() && !copperPlateQueue.Empty()) {
-            std::cout << "Activating CircuitProcess\n";
-            ironPlateQueue.GetFirst();
-            copperPlateQueue.GetFirst();
-            Seize(circuitAssembler);
-            Wait(CIRCUIT_TIME);
-            Release(circuitAssembler);
-            (new AdvCircuitProcess())->Activate(); // Activate advanced circuit assembly
-        } else {
-            std::cout << "CircuitProcess conditions not met\n";
-        }
-    }
-};
-
-// Function to check and activate electronic circuit assembly
-void CheckAndActivateCircuitProcess() {
-    if (!ironPlateQueue.Empty() && !copperPlateQueue.Empty()) {
-        (new class CircuitProcess())->Activate(); // Activate circuit assembly process
-    }
-}
-
-// Process class: Iron Plate Production
-class IronPlateProcess : public Process {
+class SmeltingProcess : public Process {
     void Behavior() override {
         if (!ironOreQueue.Empty()) {
-            ironOreQueue.GetFirst();
-            Seize(ironSmelter);
-            Wait(IRON_PLATE_TIME);
-            Release(ironSmelter);
-            ironPlateQueue.Insert(this);
-            CheckAndActivateCircuitProcess();
+            auto *ore = ironOreQueue.GetFirst(); // Take iron ore from the queue
+            delete ore;                          // Remove the ore from memory
+
+            Seize(electricalFurnace);            // Seize the electrical furnace
+            Wait(SMELTING_TIME);                 // Smelting takes 0.6 seconds
+            Release(electricalFurnace);          // Release the furnace
+
+            auto *plate = new PlateProcess();    // Create a unique plate process
+            ironPlateQueue.Insert(plate);        // Insert the iron plate into the queue
+            iron_plates_created++;               // Increment the iron plates counter
+
+            std::cout << "Iron plate created and added to the queue. Total plates: " << iron_plates_created << "\n";
+            std::cout << "Processes in ironPlateQueue: " << ironPlateQueue.Length() << "\n";
+
+            // If more iron ore is available, activate another smelting process
+            if (!ironOreQueue.Empty()) {
+                (new SmeltingProcess())->Activate();
+            }
         }
     }
 };
 
-// Process class: Copper Plate Production
-class CopperPlateProcess : public Process {
+// Dummy process class for mined iron ore
+class OreProcess : public Process {
     void Behavior() override {
-        if (!copperOreQueue.Empty()) {
-            copperOreQueue.GetFirst();
-            Seize(copperSmelter);
-            Wait(COPPER_PLATE_TIME);
-            Release(copperSmelter);
-            copperPlateQueue.Insert(this);
-            CheckAndActivateCircuitProcess();
-        }
+        // This process doesn't perform any actions
     }
 };
 
-// Event class: Resource Generation
+// Process class: Mining iron ore
+class MiningProcess : public Process {
+    void Behavior() override {
+        Seize(miningDrill);          // Seize the mining drill
+        Wait(MINING_TIME);           // Mining takes 2 seconds
+        Release(miningDrill);        // Release the mining drill
+
+        auto *ore = new OreProcess(); // Create a unique ore process
+        ironOreQueue.Insert(ore);   // Insert mined iron ore into the queue
+        iron_ore_mined++;            // Increment mined iron ore counter
+
+        std::cout << "Iron ore mined and added to the queue. Total mined: " << iron_ore_mined << "\n";
+        std::cout << "Processes in ironOreQueue: " << ironOreQueue.Length() << "\n";
+
+        // If furnace is not busy, activate smelting process
+        if (!electricalFurnace.Busy() && !ironOreQueue.Empty()) {
+            (new SmeltingProcess())->Activate();
+        }
+
+        // Stop simulation when target is achieved
+//        if (iron_plates_created >= TOTAL_IRON_PLATES) {
+//            Stop();
+//        }
+    }
+};
+
+// Event class: Resource generation
 class ResourceGenerator : public Event {
     void Behavior() override {
-        auto *ironProcess = new IronPlateProcess();
-        ironOreQueue.Insert(ironProcess);
-        ironProcess->Activate();
+        // Activate a new mining process
+        (new MiningProcess())->Activate();
 
-        auto *copperProcess = new CopperPlateProcess();
-        copperOreQueue.Insert(copperProcess);
-        copperProcess->Activate();
+        // Continue generating resources until the goal is reached
+//        if (iron_plates_created < TOTAL_IRON_PLATES) {
+//            Activate(Time + MINING_TIME); // Schedule the next mining event
+//        }
 
-        if (processors_created < TOTAL_PROCESSORS) {
-            Activate(Time + ARRIVAL_INTERVAL);
-        }
+        // Continue generating resources until the simulation time ends
+        Activate(Time + MINING_TIME); // Schedule the next mining event
     }
 };
 
+// Main function
 int main() {
     // Initialize simulation
-    Init(0, 1000);
+    Init(0,SIMULATION_TIME); // Simulation time from 0 to 1000 seconds
 
-    // Start resource generation
+    // Start the resource generation process
     (new ResourceGenerator())->Activate();
 
     // Run the simulation
     Run();
 
-    // Results
-    std::cout << "Processors assembled: " << processors_created << "\n";
-    ironSmelter.Output();
-    copperSmelter.Output();
-    circuitAssembler.Output();
-    advCircuitAssembler.Output();
-    processorAssembler.Output();
+    // Print results
+    std::cout << "Simulation finished. Iron Ore mined: " << iron_ore_mined << "\n";
+    std::cout << "Simulation finished. Iron Plates created: " << iron_plates_created << "\n";
+    miningDrill.Output();
+    electricalFurnace.Output();
 
     return 0;
 }
