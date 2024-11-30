@@ -2,32 +2,116 @@
 #include <iostream>
 
 // Constants
+const double SIMULATION_TIME = 1000; // Total simulation time in seconds
+
 const double MINING_TIME = 2.0;   // Time to mine iron ore
 const double SMELTING_TIME = 0.6; // Time to smelt iron ore into an iron plate
-const double SIMULATION_TIME = 10; // Total simulation time in seconds
 const double WATER_PROCESS_TIME = 1.0;      // Time to process 200 units of water
-const int WATER_UNIT_BATCH = 1200;     // Number of units of water processed per time unit
+const double PUMPJACK_PROCESS_TIME = 1.0;  // Time for the pumpjack to process oil (1 second)
+const double OIL_REFINING_TIME = 5.0;       // Time to refine crude oil into petroleum gas
 
+
+const int WATER_UNIT_BATCH = 1200;     // Number of units of water processed per time unit
+const int CRUDE_OIL_BATCH = 100;          // Amount of crude oil produced per batch
+const int PETROLEUM_GAS_BATCH = 45;         // Amount of petroleum gas produced per refining process
+
+const int  MIN_CRUDE_OIL_FOR_GAS = 100;
 
 const int NUM_FURNACES = 1;       // Number of furnaces
 const int NUM_DRILLS = 4;         // Number of mining drills
 const int NUM_WATER_PUMPS = 1;
+const int NUM_PUMPJACKS = 1;
+const int NUM_OIL_REFINERIES = 1;           // Number of oil refineries
+
 
 // Global variables
 int iron_ore_mined = 0;           // Counter for mined iron ore
-int iron_plates_created = 0;      // Counter for smelted iron plates
+int iron_plates_produced = 0;      // Counter for smelted iron plates
 int water_units_processed = 0;    // Counter for processed water units
+int crude_oil_produced = 0;               // Counter for total crude oil produced
+int petroleum_gas_produced = 0;             // Counter for total petroleum gas produced
+
 
 // Queue
 Queue ironOreQueue("Iron Ore Queue");
 Queue ironPlateQueue("Iron Plate Queue");
 Queue waterQueue("Water Queue");
+Queue crudeOilQueue("Crude Oil Queue");
+Queue petroleumGasQueue("Petroleum Gas Queue");
+
 
 // Store
 Store miningDrills("Electric Mining Drills", NUM_DRILLS); // Store for mining drills
 Store electricalFurnaces("Electrical Furnaces", NUM_FURNACES); // Store for furnaces
 Store waterWellPump("Water Well Pump", NUM_WATER_PUMPS);    // Store for water well pumps
+Store pumpjack("Pumpjack", NUM_PUMPJACKS);    // Store for pumpjacks
+Store oilRefinery("Oil Refinery", NUM_OIL_REFINERIES); // Store for oil refineries
 
+
+class PetroleumGasBatchProcess  : public Process {
+    void Behavior() override {
+        // This process doesn't perform any actions itself
+    }
+};
+
+class CrudeOilBatchProcess  : public Process {
+    void Behavior() override {
+        // This process doesn't perform any actions itself
+    }
+};
+
+// Process class: Oil refining
+class OilRefiningProcess : public Process {
+    void Behavior() override {
+        // Check if we have enough crude oil and an available refinery
+        if (crudeOilQueue.Length() >= MIN_CRUDE_OIL_FOR_GAS && oilRefinery.Free() > 0) {
+            // Remove 100 crude oil processes from the queue
+            for (int i = 0; i < MIN_CRUDE_OIL_FOR_GAS; ++i) {
+                auto *crudeOil = crudeOilQueue.GetFirst(); // Remove the process from the queue
+                delete crudeOil;                          // Free the memory
+            }
+
+            Enter(oilRefinery);            // Seize an oil refinery
+            Wait(OIL_REFINING_TIME);       // Refining takes 5 seconds
+            Leave(oilRefinery);            // Release the oil refinery
+
+            // Create a petroleum gas batch and insert it into the queue
+            auto *gasBatch = new PetroleumGasBatchProcess();
+            petroleumGasQueue.Insert(gasBatch); // Insert the batch into the petroleum gas queue
+            petroleum_gas_produced += PETROLEUM_GAS_BATCH; // Increment petroleum gas production counter
+
+            std::cout << "Petroleum gas produced: " << PETROLEUM_GAS_BATCH
+                      << " units. Total petroleum gas: " << petroleum_gas_produced << " units.\n";
+        }
+
+        // Check again if we can start another refining process
+        if (crude_oil_produced >= MIN_CRUDE_OIL_FOR_GAS && oilRefinery.Free() > 0) {
+            crude_oil_produced -= MIN_CRUDE_OIL_FOR_GAS;
+            (new OilRefiningProcess())->Activate();
+        }
+    }
+};
+
+class PumpjackProcess  : public Process {
+    void Behavior() override {
+        Enter(pumpjack);                  // Enter the water pump store
+        Wait(PUMPJACK_PROCESS_TIME);              // Processing takes 1 second
+        Leave(pumpjack);                  // Leave the water pump store
+
+        auto *oilBatch = new CrudeOilBatchProcess(); // Create a unique water batch process
+        crudeOilQueue.Insert(oilBatch);              // Insert the batch into the water queue
+        crude_oil_produced += CRUDE_OIL_BATCH;  // Increment the processed water units counter
+
+        std::cout << "Crude oil batch produced and added to the queue. Total crude oil: "
+                  << crude_oil_produced << " units.\n";
+        std::cout << "Processes in crudeOilQueue: " << crudeOilQueue.Length() << "\n";
+
+        // Schedule the next pumpjack process if within simulation time
+        if (Time < SIMULATION_TIME) {
+            (new OilRefiningProcess())->Activate();
+        }
+    }
+};
 
 
 // Dummy process class for processed water
@@ -76,10 +160,10 @@ class SmeltingProcess : public Process {
 
             auto *plate = new PlateProcess();    // Create a unique plate process
             ironPlateQueue.Insert(plate);        // Insert the iron plate into the queue
-            iron_plates_created++;               // Increment the iron plates counter
+            iron_plates_produced++;               // Increment the iron plates counter
 
-            std::cout << "Iron plate created and added to the queue. Total plates: " << iron_plates_created << "\n";
-            std::cout << "Processes in ironPlateQueue: " << ironPlateQueue.Length() << "\n";
+           // std::cout << "Iron plate created and added to the queue. Total plates: " << iron_plates_produced << "\n";
+           // std::cout << "Processes in ironPlateQueue: " << ironPlateQueue.Length() << "\n";
 
             // If more iron ore is available, activate another smelting process
             if (!ironOreQueue.Empty()) {
@@ -107,12 +191,39 @@ class MiningProcess : public Process {
         ironOreQueue.Insert(ore);   // Insert mined iron ore into the queue
         iron_ore_mined++;            // Increment mined iron ore counter
 
-        std::cout << "Iron ore mined and added to the queue. Total mined: " << iron_ore_mined << "\n";
-        std::cout << "Processes in ironOreQueue: " << ironOreQueue.Length() << "\n";
+        //std::cout << "Iron ore mined and added to the queue. Total mined: " << iron_ore_mined << "\n";
+        //std::cout << "Processes in ironOreQueue: " << ironOreQueue.Length() << "\n";
 
         // If any furnace is available, activate smelting process
         if (electricalFurnaces.Free() > 0 && !ironOreQueue.Empty()) {
             (new SmeltingProcess())->Activate();
+        }
+    }
+};
+
+
+// Event class: Oil production generator
+class OilProductionGenerator : public Event {
+    void Behavior() override {
+        // Activate the first pumpjack process
+        (new PumpjackProcess())->Activate();
+
+        // Continue generating oil production if within simulation time
+        if (Time + PUMPJACK_PROCESS_TIME < SIMULATION_TIME) {
+            Activate(Time + PUMPJACK_PROCESS_TIME); // Schedule the next oil production event
+        }
+    }
+};
+
+// Event class: Water production generator
+class WaterProductionGenerator : public Event {
+    void Behavior() override {
+        // Activate the first water production process
+        (new WaterProductionProcess())->Activate();
+
+        // Continue generating water until the simulation time ends
+        if (Time + WATER_PROCESS_TIME < SIMULATION_TIME) {
+            Activate(Time + WATER_PROCESS_TIME); // Schedule the next water production event
         }
     }
 };
@@ -132,18 +243,7 @@ class ResourceGenerator : public Event {
     }
 };
 
-// Event class: Water production generator
-class WaterProductionGenerator : public Event {
-    void Behavior() override {
-        // Activate the first water production process
-        (new WaterProductionProcess())->Activate();
 
-        // Continue generating water until the simulation time ends
-        if (Time + WATER_PROCESS_TIME < SIMULATION_TIME) {
-            Activate(Time + WATER_PROCESS_TIME); // Schedule the next water production event
-        }
-    }
-};
 
 void best_values(){
 
@@ -161,20 +261,25 @@ int main() {
     Init(0, SIMULATION_TIME); // Simulation time from 0 to 1000 seconds
 
     // Start the resource generation process
+    (new OilProductionGenerator())->Activate();
+    (new WaterProductionGenerator())->Activate();
     (new ResourceGenerator())->Activate();
-    (new WaterProductionGenerator())->Activate(); // Activate water production
 
     // Run the simulation
     Run();
 
     // Print results
     std::cout << "Simulation finished. Iron Ore mined: " << iron_ore_mined << "\n";
-    std::cout << "Simulation finished. Iron Plates created: " << iron_plates_created << "\n";
+    std::cout << "Simulation finished. Iron Plates created: " << iron_plates_produced << "\n";
     std::cout << "Simulation finished. Water units processed: " << water_units_processed << "\n";
+    std::cout << "Simulation finished. Total crude oil produced: " << crude_oil_produced << " units.\n";
+    std::cout << "Simulation finished. Total petroleum gas produced: " << petroleum_gas_produced << " units.\n";
 
-    miningDrills.Output();
-    electricalFurnaces.Output();
-    waterWellPump.Output();
-    best_values();
+    oilRefinery.Output();
+    pumpjack.Output();
+    //miningDrills.Output();
+    //electricalFurnaces.Output();
+    //waterWellPump.Output();
+    //best_values();
     return 0;
 }
