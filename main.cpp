@@ -131,7 +131,7 @@ class WaterProductionProcess : public Process {
                   << water_units_processed << "\n";
 
         // Activate the next water production process
-        if (Time < SIMULATION_TIME) {
+        if (Time + WATER_PROCESS_TIME < SIMULATION_TIME) {
             (new WaterProductionProcess())->Activate();
         }
     }
@@ -162,7 +162,7 @@ class SmeltingProcess : public Process {
            // std::cout << "Processes in ironPlateQueue: " << ironPlateQueue.Length() << "\n";
 
             // If more iron ore is available, activate another smelting process
-            if (!ironOreQueue.Empty()) {
+            if (Time + SMELTING_TIME <= SIMULATION_TIME && !ironOreQueue.Empty()) {
                 (new SmeltingProcess())->Activate();
             }
         }
@@ -191,7 +191,7 @@ class MiningProcess : public Process {
         //std::cout << "Processes in ironOreQueue: " << ironOreQueue.Length() << "\n";
 
         // If any furnace is available, activate smelting process
-        if (electricalFurnaces.Free() > 0 && !ironOreQueue.Empty()) {
+        if (Time + SMELTING_TIME <= SIMULATION_TIME && electricalFurnaces.Free() > 0 && !ironOreQueue.Empty()) {
             (new SmeltingProcess())->Activate();
         }
     }
