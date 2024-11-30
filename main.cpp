@@ -77,10 +77,6 @@ class MiningProcess : public Process {
             (new SmeltingProcess())->Activate();
         }
 
-        // Stop simulation when target is achieved
-//        if (iron_plates_created >= TOTAL_IRON_PLATES) {
-//            Stop();
-//        }
     }
 };
 
@@ -89,11 +85,6 @@ class ResourceGenerator : public Event {
     void Behavior() override {
         // Activate a new mining process
         (new MiningProcess())->Activate();
-
-        // Continue generating resources until the goal is reached
-//        if (iron_plates_created < TOTAL_IRON_PLATES) {
-//            Activate(Time + MINING_TIME); // Schedule the next mining event
-//        }
 
         // Continue generating resources until the simulation time ends
         Activate(Time + MINING_TIME); // Schedule the next mining event
