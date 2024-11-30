@@ -4,7 +4,8 @@
 // Constants
 const double MINING_TIME = 2.0;   // Time to mine iron ore
 const double SMELTING_TIME = 0.6;   // Time to smelt iron ore into an iron plate
-const int TOTAL_IRON_PLATES = 10;    // Total iron ore units to produce
+const double SIMULATION_TIME = 100; // Total simulation time in seconds
+
 
 // Global variables
 int iron_ore_mined = 0;           // Counter for mined iron ore
@@ -77,9 +78,9 @@ class MiningProcess : public Process {
         }
 
         // Stop simulation when target is achieved
-        if (iron_plates_created >= TOTAL_IRON_PLATES) {
-            Stop();
-        }
+//        if (iron_plates_created >= TOTAL_IRON_PLATES) {
+//            Stop();
+//        }
     }
 };
 
@@ -90,16 +91,19 @@ class ResourceGenerator : public Event {
         (new MiningProcess())->Activate();
 
         // Continue generating resources until the goal is reached
-        if (iron_plates_created < TOTAL_IRON_PLATES) {
-            Activate(Time + MINING_TIME); // Schedule the next mining event
-        }
+//        if (iron_plates_created < TOTAL_IRON_PLATES) {
+//            Activate(Time + MINING_TIME); // Schedule the next mining event
+//        }
+
+        // Continue generating resources until the simulation time ends
+        Activate(Time + MINING_TIME); // Schedule the next mining event
     }
 };
 
 // Main function
 int main() {
     // Initialize simulation
-    Init(0, 1000); // Simulation time from 0 to 1000 seconds
+    Init(0,SIMULATION_TIME); // Simulation time from 0 to 1000 seconds
 
     // Start the resource generation process
     (new ResourceGenerator())->Activate();
