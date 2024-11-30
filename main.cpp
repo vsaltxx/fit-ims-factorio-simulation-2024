@@ -26,10 +26,11 @@ const int NUM_OIL_REFINERIES = 1;           // Number of oil refineries
 
 // Global variables
 int iron_ore_mined = 0;           // Counter for mined iron ore
+int iron_ore_left = 0;           // Counter for mined iron ore left at the end of the simulation
 int iron_plates_produced = 0;      // Counter for smelted iron plates
 int water_units_processed = 0;    // Counter for processed water units
 int crude_oil_produced = 0;               // Counter for total crude oil produced
-int crude_oil_left = 0;               // Counter for crude oil left  at the end of the simulation
+int crude_oil_left = 0;               // Counter for crude oil left at the end of the simulation
 int petroleum_gas_produced = 0;             // Counter for total petroleum gas produced
 
 
@@ -64,22 +65,20 @@ class CrudeOilBatchProcess  : public Process {
 // Process class: Oil refining
 class OilRefiningProcess : public Process {
     void Behavior() override {
-            crude_oil_left -= MIN_CRUDE_OIL_FOR_GAS;
-            auto *crudeOil = crudeOilQueue.GetFirst(); // Remove the process from the queue
-            delete crudeOil;                          // Free the memory
+        crude_oil_left -= MIN_CRUDE_OIL_FOR_GAS;
+        auto *crudeOil = crudeOilQueue.GetFirst(); // Remove the process from the queue
+        delete crudeOil;                          // Free the memory
 
-            Enter(oilRefinery);            // Seize an oil refinery
-            Wait(OIL_REFINING_TIME);       // Refining takes 5 seconds
-            Leave(oilRefinery);            // Release the oil refinery
+        Enter(oilRefinery);            // Seize an oil refinery
+        Wait(OIL_REFINING_TIME);       // Refining takes 5 seconds
+        Leave(oilRefinery);            // Release the oil refinery
 
-            // Create a petroleum gas batch and insert it into the queue
-            auto *gasBatch = new PetroleumGasBatchProcess();
-            petroleumGasQueue.Insert(gasBatch); // Insert the batch into the petroleum gas queue
-            petroleum_gas_produced += PETROLEUM_GAS_BATCH; // Increment petroleum gas production counter
+        // Create a petroleum gas batch and insert it into the queue
+        auto *gasBatch = new PetroleumGasBatchProcess();
+        petroleumGasQueue.Insert(gasBatch); // Insert the batch into the petroleum gas queue
+        petroleum_gas_produced += PETROLEUM_GAS_BATCH; // Increment petroleum gas production counter
 
-            std::cout << "Petroleum gas produced: " << PETROLEUM_GAS_BATCH
-                      << " units. Total petroleum gas: " << petroleum_gas_produced << " units.\n";
-       // }
+        //std::cout << "Petroleum gas produced: " << petroleum_gas_produced << " units.\n";
 
         // Check again if we can start another refining process
         if (Time + OIL_REFINING_TIME <= SIMULATION_TIME && crude_oil_left >= MIN_CRUDE_OIL_FOR_GAS && oilRefinery.Free() > 0) {
@@ -99,9 +98,9 @@ class PumpjackProcess  : public Process {
         crude_oil_produced += CRUDE_OIL_BATCH;  // Increment the processed water units counter
         crude_oil_left += CRUDE_OIL_BATCH;
 
-        std::cout << "Crude oil batch produced and added to the queue. Total crude oil: "
-                  << crude_oil_produced << " units.\n";
-        std::cout << "Processes in crudeOilQueue: " << crudeOilQueue.Length() << "\n";
+//        std::cout << "Crude oil batch produced and added to the queue. Total crude oil: "
+//                  << crude_oil_produced << " units.\n";
+//        std::cout << "Processes in crudeOilQueue: " << crudeOilQueue.Length() << "\n";
 
         if (Time + OIL_REFINING_TIME <= SIMULATION_TIME && crude_oil_left >= MIN_CRUDE_OIL_FOR_GAS && oilRefinery.Free() > 0) {
             (new OilRefiningProcess())->Activate();
@@ -109,8 +108,6 @@ class PumpjackProcess  : public Process {
     }
 };
 
-
-// Dummy process class for processed water
 class WaterBatchProcess : public Process {
     void Behavior() override {
         // This process doesn't perform any actions itself
@@ -127,8 +124,8 @@ class WaterProductionProcess : public Process {
         waterQueue.Insert(waterBatch);              // Insert the batch into the water queue
         water_units_processed += WATER_UNIT_BATCH;  // Increment the processed water units counter
 
-        std::cout << "Water batch processed and added to the queue. Total water units processed: "
-                  << water_units_processed << "\n";
+        //std::cout << "Water batch processed and added to the queue. Total water units processed: "
+        //          << water_units_processed << "\n";
 
         // Activate the next water production process
         if (Time + WATER_PROCESS_TIME < SIMULATION_TIME) {
@@ -137,7 +134,6 @@ class WaterProductionProcess : public Process {
     }
 };
 
-// Dummy process class for smelted iron plates
 class PlateProcess : public Process {
     void Behavior() override {
         // This process doesn't perform any actions
@@ -147,6 +143,7 @@ class PlateProcess : public Process {
 class SmeltingProcess : public Process {
     void Behavior() override {
         if (!ironOreQueue.Empty()) {
+            iron_ore_left--;
             auto *ore = ironOreQueue.GetFirst(); // Take iron ore from the queue
             delete ore;                          // Remove the ore from memory
 
@@ -186,6 +183,7 @@ class MiningProcess : public Process {
         auto *ore = new OreProcess(); // Create a unique ore process
         ironOreQueue.Insert(ore);   // Insert mined iron ore into the queue
         iron_ore_mined++;            // Increment mined iron ore counter
+        iron_ore_left++;
 
         //std::cout << "Iron ore mined and added to the queue. Total mined: " << iron_ore_mined << "\n";
         //std::cout << "Processes in ironOreQueue: " << ironOreQueue.Length() << "\n";
@@ -265,9 +263,10 @@ int main() {
     Run();
 
     // Print results
-    std::cout << "Simulation finished. Iron Ore mined: " << iron_ore_mined << "\n";
+    std::cout << "Simulation finished. Iron Ore mined during the simulation time:: " << iron_ore_mined << "\n";
+    std::cout << "Simulation finished. Total iron ore left: " << iron_ore_left << " units.\n";
     std::cout << "Simulation finished. Iron Plates created: " << iron_plates_produced << "\n";
-    std::cout << "Simulation finished. Water units processed: " << water_units_processed << "\n";
+    std::cout << "Simulation finished. Water units processed during the simulation time:: " << water_units_processed << "\n";
     std::cout << "Simulation finished. Total crude oil produced during the simulation time: " << crude_oil_produced << " units.\n";
     std::cout << "Simulation finished. Total crude oil left: " << crude_oil_left << " units.\n";
     std::cout << "Simulation finished. Total petroleum gas produced: " << petroleum_gas_produced << " units.\n";
