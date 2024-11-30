@@ -2,7 +2,7 @@
 #include <iostream>
 
 // Constants
-const double SIMULATION_TIME = 1000; // Total simulation time in seconds
+const double SIMULATION_TIME = 10; // Total simulation time in seconds
 
 const double MINING_TIME = 2.0;   // Time to mine iron ore
 const double SMELTING_TIME = 0.6; // Time to smelt iron ore into an iron plate
@@ -29,6 +29,7 @@ int iron_ore_mined = 0;           // Counter for mined iron ore
 int iron_plates_produced = 0;      // Counter for smelted iron plates
 int water_units_processed = 0;    // Counter for processed water units
 int crude_oil_produced = 0;               // Counter for total crude oil produced
+int crude_oil_left = 0;               // Counter for crude oil left  at the end of the simulation
 int petroleum_gas_produced = 0;             // Counter for total petroleum gas produced
 
 
@@ -63,13 +64,9 @@ class CrudeOilBatchProcess  : public Process {
 // Process class: Oil refining
 class OilRefiningProcess : public Process {
     void Behavior() override {
-        // Check if we have enough crude oil and an available refinery
-        if (crudeOilQueue.Length() >= MIN_CRUDE_OIL_FOR_GAS && oilRefinery.Free() > 0) {
-            // Remove 100 crude oil processes from the queue
-            for (int i = 0; i < MIN_CRUDE_OIL_FOR_GAS; ++i) {
-                auto *crudeOil = crudeOilQueue.GetFirst(); // Remove the process from the queue
-                delete crudeOil;                          // Free the memory
-            }
+            crude_oil_left -= MIN_CRUDE_OIL_FOR_GAS;
+            auto *crudeOil = crudeOilQueue.GetFirst(); // Remove the process from the queue
+            delete crudeOil;                          // Free the memory
 
             Enter(oilRefinery);            // Seize an oil refinery
             Wait(OIL_REFINING_TIME);       // Refining takes 5 seconds
@@ -82,11 +79,10 @@ class OilRefiningProcess : public Process {
 
             std::cout << "Petroleum gas produced: " << PETROLEUM_GAS_BATCH
                       << " units. Total petroleum gas: " << petroleum_gas_produced << " units.\n";
-        }
+       // }
 
         // Check again if we can start another refining process
-        if (crude_oil_produced >= MIN_CRUDE_OIL_FOR_GAS && oilRefinery.Free() > 0) {
-            crude_oil_produced -= MIN_CRUDE_OIL_FOR_GAS;
+        if (Time + OIL_REFINING_TIME <= SIMULATION_TIME && crude_oil_left >= MIN_CRUDE_OIL_FOR_GAS && oilRefinery.Free() > 0) {
             (new OilRefiningProcess())->Activate();
         }
     }
@@ -101,13 +97,13 @@ class PumpjackProcess  : public Process {
         auto *oilBatch = new CrudeOilBatchProcess(); // Create a unique water batch process
         crudeOilQueue.Insert(oilBatch);              // Insert the batch into the water queue
         crude_oil_produced += CRUDE_OIL_BATCH;  // Increment the processed water units counter
+        crude_oil_left += CRUDE_OIL_BATCH;
 
         std::cout << "Crude oil batch produced and added to the queue. Total crude oil: "
                   << crude_oil_produced << " units.\n";
         std::cout << "Processes in crudeOilQueue: " << crudeOilQueue.Length() << "\n";
 
-        // Schedule the next pumpjack process if within simulation time
-        if (Time < SIMULATION_TIME) {
+        if (Time + OIL_REFINING_TIME <= SIMULATION_TIME && crude_oil_left >= MIN_CRUDE_OIL_FOR_GAS && oilRefinery.Free() > 0) {
             (new OilRefiningProcess())->Activate();
         }
     }
@@ -272,7 +268,8 @@ int main() {
     std::cout << "Simulation finished. Iron Ore mined: " << iron_ore_mined << "\n";
     std::cout << "Simulation finished. Iron Plates created: " << iron_plates_produced << "\n";
     std::cout << "Simulation finished. Water units processed: " << water_units_processed << "\n";
-    std::cout << "Simulation finished. Total crude oil produced: " << crude_oil_produced << " units.\n";
+    std::cout << "Simulation finished. Total crude oil produced during the simulation time: " << crude_oil_produced << " units.\n";
+    std::cout << "Simulation finished. Total crude oil left: " << crude_oil_left << " units.\n";
     std::cout << "Simulation finished. Total petroleum gas produced: " << petroleum_gas_produced << " units.\n";
 
     oilRefinery.Output();
