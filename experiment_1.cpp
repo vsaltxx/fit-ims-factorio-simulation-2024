@@ -736,25 +736,31 @@ int main() {
     // print all queues
     std::cout << "Iron ore: " << ironOreQueue.Length() << "\n";
     std::cout << "Iron plates: " << ironPlateQueue.Length() << "\n";
-    std::cout << "Water units: " << waterQueue.Length() << "\n";
-    std::cout << "Crude oil for sulfur: " << crudeOilForSulfurQueue.Length() << "\n";
-    std::cout << "Sulfur: " << sulfurQueue.Length() << "\n";
-    std::cout << "Coal: " << coalQueue.Length() << "\n";
-    std::cout << "Crude oil for plastic bar: " << crudeOilForPlasticBarQueue.Length() << "\n";
-    std::cout << "Petroleum gas for plastic bar: " << petroleumGasForPlasticBarQueue.Length() << "\n";
-    std::cout << "Plastic bars: " << plasticBarQueue.Length() << "\n";
+    std::cout << "Iron plates for Sulfuric Acid: " << ironPlateQueueForSulfur.Length() << "\n";
+    std::cout << "Iron plates for El.circuit: " << ironPlateQueueForCircuit.Length() << "\n";
     std::cout << "Copper ore: " << copperOreQueue.Length() << "\n";
     std::cout << "Copper plates: " << copperPlateQueue.Length() << "\n";
     std::cout << "Copper cables: " << copperCableQueue.Length() << "\n";
     std::cout << "Copper cables for El.circuit: " << copperCableForElectronicCircuit.Length() << "\n";
     std::cout << "Copper cables for Adv.El.circuit: " << copperCableForAdvanceElectronicCircuit.Length() << "\n";
-    std::cout << "Iron plates for Sulfuric Acid: " << ironPlateQueueForSulfur.Length() << "\n";
-    std::cout << "Iron plates for El.circuit: " << ironPlateQueueForCircuit.Length() << "\n";
-    std::cout << "Electronic circuits created: " << electronic_circuits_produced << "\n";
+
     std::cout << "Electronic circuit queue: " << electronicCircuitQueue.Length() << "\n";
     std::cout << "Electronic circuit for Adv.El.circuit: " << electronicCircuitQueueForAdvance.Length() << "\n";
-    std::cout << "Advanced electronic circuits created: " << advancedElectronicCircuitQueue.Length() << "\n";
     std::cout << "Electronic circuit for Processor: " << electronicCircuitQueueForProcessingUnit.Length() << "\n";
+
+    std::cout << "Coal: " << coalQueue.Length() << "\n";
+    std::cout << "Crude oil for plastic bar: " << crudeOilForPlasticBarQueue.Length() << "\n";
+    std::cout << "Petroleum gas for plastic bar: " << petroleumGasForPlasticBarQueue.Length() << "\n";
+    std::cout << "Plastic bars: " << plasticBarQueue.Length() << "\n";
+
+    std::cout << "Advanced electronic circuits created: " << advancedElectronicCircuitQueue.Length() << "\n";
+
+    std::cout << "Water units: " << waterQueue.Length() << "\n";
+    std::cout << "Crude oil for sulfur: " << crudeOilForSulfurQueue.Length() << "\n";
+    std::cout << "Petroleum gas for sulfur: " << petroleumGasForSulfurQueue.Length() << "\n";
+    std::cout << "Sulfur: " << sulfurQueue.Length() << "\n";
+    std::cout << "Sulfuric acid: " << sulfuricAcidQueue.Length() << "\n";
+
     std::cout << "Processors: " << processorQueue.Length() << "\n";
     //best_values();
 
