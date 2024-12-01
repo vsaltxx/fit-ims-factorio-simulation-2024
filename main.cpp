@@ -396,7 +396,7 @@ class CopperSmeltingProcess : public Process {
             std::cout << "Copper plate created and added to the queue. Total plates: " << copper_plates_created << "\n";
             std::cout << "Processes in copperPlateQueue: " << copperPlateQueue.Length() << "\n";
 
-            if (Time + COPPER_SMELTING_TIME <= SIMULATION_TIME !copperOreQueue.Empty()) {
+            if (Time + COPPER_SMELTING_TIME <= SIMULATION_TIME && !copperOreQueue.Empty()) {
                 (new CopperSmeltingProcess())->Activate(); // Activate another smelting process if more copper ore is available
             }
 
