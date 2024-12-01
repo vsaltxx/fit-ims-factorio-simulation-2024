@@ -672,6 +672,7 @@ class ResourceGenerator : public Event {
     }
 };
 
+// TODO: add comments to this function
 void best_values() {
     int iron_mine_ore = int(SIMULATION_TIME / IRON_MINING_TIME) * NUM_IRON_ORE_DRILLS;
     int iron_smelt_ore = int((SIMULATION_TIME - IRON_MINING_TIME) / IRON_SMELTING_TIME) * NUM_IRON_FURNACES;
@@ -711,7 +712,7 @@ int main() {
     Run(); // Run the simulation
 
     // Print results
-    std::cout << "Simulation finished \n";
+    std::cout << "Simulation finished \n\n";
     best_values();
 
     return 0;

@@ -45,9 +45,6 @@ const int  MIN_EL_CIRCUIT_FOR_ADV_CIRCUIT = 2;
 const int  MIN_COPPER_CABLE_FOR_ADV_CIRCUIT = 4;
 const int  MIN_PLASTIC_BAR_FOR_ADV_CIRCUIT = 2;
 
-
-
-
 const int NUM_COAL_DRILLS = 4;
 const int NUM_WATER_PUMPS = 1;
 const int NUM_PUMPJACKS_FOR_SULFUR = 1;
@@ -672,6 +669,7 @@ class ResourceGenerator : public Event {
     }
 };
 
+// TODO: add comments to this function
 void best_values() {
     int iron_mine_ore = int(SIMULATION_TIME / IRON_MINING_TIME) * NUM_IRON_ORE_DRILLS;
     int iron_smelt_ore = int((SIMULATION_TIME - IRON_MINING_TIME) / IRON_SMELTING_TIME) * NUM_IRON_FURNACES;
@@ -712,7 +710,8 @@ int main() {
 
     // Print results
     std::cout << "Simulation finished \n \n";
-    // print all queues
+
+    // Print all queues
     std::cout << "Iron ore: " << ironOreQueue.Length() << "\n";
     std::cout << "Iron plates: " << ironPlateQueue.Length() << "\n";
     std::cout << "Iron plates for Sulfuric Acid: " << ironPlateQueueForSulfur.Length() << "\n";
@@ -741,7 +740,6 @@ int main() {
     std::cout << "Sulfuric acid: " << sulfuricAcidQueue.Length() << "\n";
 
     std::cout << "Processors: " << processorQueue.Length() << "\n";
-    //best_values();
 
     return 0;
 }
