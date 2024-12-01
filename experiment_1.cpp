@@ -2,7 +2,7 @@
 #include <iostream>
 
 // Constants
-const double SIMULATION_TIME = 10;// Total simulation time in seconds
+const double SIMULATION_TIME = 132;// Total simulation time in seconds
 
 const double COAL_MINING_TIME = 2.0;
 const double WATER_PROCESS_TIME = 1.0;
