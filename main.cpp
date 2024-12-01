@@ -84,22 +84,22 @@ class SulfurProcess : public Process {
 
 class SulfurProductionProcess : public Process {
     void Behavior() override {
-        if (waterQueue.Length() >= 30 && petroleumGasQueue.Length() >= 30) {
-            for (int i = 0; i < 30; ++i) {
+        if (waterQueue.Length() >= MIN_WATER_FOR_SULFUR && petroleumGasQueue.Length() >= MIN_GAS_FOR_SULFUR) {
+            for (int i = 0; i < MIN_GAS_FOR_SULFUR; ++i) {
                 auto *water = waterQueue.GetFirst(); // Remove 30 units of water from the queue
                 delete water;                       // Free the memory
 
                 auto *petroleumGas = petroleumGasQueue.GetFirst(); // Remove 30 units of petroleum gas from the queue
                 delete petroleumGas;                          // Free the memory
             }
-            water_units_left -= 30;
-            petroleum_gas_left -= 30;
+            water_units_left -= MIN_WATER_FOR_SULFUR;
+            petroleum_gas_left -= MIN_GAS_FOR_SULFUR;
 
             Enter(sulfurChemicalPlant);            // Seize the sulfur chemical plant
             Wait(CH_PLANT_TIME);             // Chemical processing time (1 second)
             Leave(sulfurChemicalPlant);            // Release the sulfur chemical plant
 
-            for (int i = 0; i < 2; ++i) {
+            for (int i = 0; i < SULFUR_BATCH; ++i) {
                 auto *sulfur = new SulfurProcess(); // Create 2 units of sulfur
                 sulfurQueue.Insert(sulfur);         // Insert the sulfur into the queue
             }
@@ -126,23 +126,23 @@ class CrudeOilBatchProcess  : public Process {
 // Process class: Oil refining
 class OilRefiningProcess : public Process {
     void Behavior() override {
-        if (crudeOilQueue.Length() >= 100) {
-            for (int i = 0; i < 100; ++i) {
+        if (crudeOilQueue.Length() >= MIN_CRUDE_OIL_FOR_GAS) {
+            for (int i = 0; i < MIN_CRUDE_OIL_FOR_GAS; ++i) {
                 auto *crudeOil = crudeOilQueue.GetFirst(); // Remove 100 units of crude oil from the queue
                 delete crudeOil;                          // Free the memory
             }
-            crude_oil_left -= 100;
+            crude_oil_left -= MIN_CRUDE_OIL_FOR_GAS;
 
             Enter(oilRefinery);            // Seize an oil refinery
             Wait(OIL_REFINING_TIME);       // Refining takes 5 seconds
             Leave(oilRefinery);            // Release the oil refinery
 
-            for (int i = 0; i < 45; ++i) {
+            for (int i = 0; i < PETROLEUM_GAS_BATCH; ++i) {
                 auto *petroleumGas = new CrudeOilBatchProcess(); // Create a unique petroleum gas process
                 petroleumGasQueue.Insert(petroleumGas);          // Insert the petroleum gas into the queue
             }
-            petroleum_gas_produced += 45; // Increment petroleum gas production counter
-            petroleum_gas_left += 45;
+            petroleum_gas_produced += PETROLEUM_GAS_BATCH; // Increment petroleum gas production counter
+            petroleum_gas_left += PETROLEUM_GAS_BATCH;
 
             std::cout << "Petroleum gas produced and added to the queue. Total petroleum gas: "
                       << petroleum_gas_produced << " units.\n";
@@ -160,12 +160,12 @@ class PumpjackProcess : public Process {
         Wait(PUMPJACK_PROCESS_TIME);      // Processing takes 1 second
         Leave(pumpjack);                  // Leave the pumpjack store
 
-        for (int i = 0; i < 100; ++i) {
+        for (int i = 0; i < MIN_CRUDE_OIL_FOR_GAS; ++i) {
             auto *oilBatch = new CrudeOilBatchProcess(); // Create a unique crude oil batch process
             crudeOilQueue.Insert(oilBatch);              // Insert the batch into the crude oil queue
         }
-        crude_oil_produced += 100;  // Increment the processed crude oil units counter
-        crude_oil_left += 100;
+        crude_oil_produced += CRUDE_OIL_BATCH;  // Increment the processed crude oil units counter
+        crude_oil_left += CRUDE_OIL_BATCH;
         if (Time + PUMPJACK_PROCESS_TIME < SIMULATION_TIME && oilRefinery.Free() > 0) {
             (new OilRefiningProcess())->Activate();
         }
@@ -185,12 +185,12 @@ class WaterProductionProcess : public Process {
         Wait(WATER_PROCESS_TIME);              // Processing takes 1 second
         Leave(waterWellPump);                  // Leave the water pump store
 
-        for (int i = 0; i < 1200; ++i) {
+        for (int i = 0; i < WATER_UNIT_BATCH; ++i) {
             auto *waterBatch = new WaterBatchProcess(); // Create a unique water batch process
             waterQueue.Insert(waterBatch);              // Insert the batch into the water queue
         }
-        water_units_produced += 1200;  // Increment the processed water units counter
-        water_units_left += 1200;
+        water_units_produced += WATER_UNIT_BATCH;  // Increment the processed water units counter
+        water_units_left += WATER_UNIT_BATCH;
 
         // Activate sulfur production if conditions are met
         if (Time + CH_PLANT_TIME <= SIMULATION_TIME && sulfurChemicalPlant.Free() > 0) {
