@@ -31,8 +31,8 @@ int copper_plates_created = 0;    // Counter for smelted copper plates
 int copper_cables_created = 0;    // Counter for created copper cables
 int electronic_circuits_created = 0; // Counter for created electronic circuits
 
-bool CoppertoggleSplitter = true; // Toggle for the splitter
-bool IrontoggleSplitter = true;   // Toggle for the splitter
+bool CopperToggleSplitter = true; // Toggle for the splitter
+bool IronToggleSplitter = true;   // Toggle for the splitter
 
 // Queues
 Queue ironOreQueue("Iron Ore Queue");
@@ -40,10 +40,10 @@ Queue ironPlateQueue("Iron Plate Queue");
 Queue copperOreQueue("Copper Ore Queue");
 Queue copperPlateQueue("Copper Plate Queue");
 Queue copperCableQueue("Copper Cable Queue");
-Queue copperCableQueue1("Copper Cable Queue 1");
-Queue copperCableQueue2("Copper Cable Queue 2");
-Queue ironPlateQueue1("Iron Plate Queue 1");
-Queue ironPlateQueue2("Iron Plate Queue 2");
+Queue copperCableForElectronicCircuit("Copper Cable Queue 1");
+Queue copperCableForAdvanceElectronicCircuit("Copper Cable Queue 2");
+Queue ironPlateQueueForCircuit("Iron Plate Queue 2");
+Queue ironPlateQueueForSulfur("Iron Plate Queue 1");
 Queue electronicCircuitQueue("Electronic Circuit Queue");
 
 // Stores
@@ -73,12 +73,12 @@ class ElectronicCircuitProcess : public Process {
 
 class CircuitAssemblyProcess : public Process {
     void Behavior() override {
-        if (!ironPlateQueue1.Empty() && copperCableQueue1.Length() >= 3) {
-            auto *plate = ironPlateQueue1.GetFirst(); // Take iron plate from conveyor 1
+        if (!ironPlateQueueForCircuit.Empty() && copperCableForElectronicCircuit.Length() >= 3) {
+            auto *plate = ironPlateQueueForCircuit.GetFirst(); // Take iron plate from conveyor 1
             delete plate;                             // Remove the plate from memory
 
             for (int i = 0; i < 3; ++i) {
-                auto *cable = copperCableQueue1.GetFirst(); // Take 3 copper cables from conveyor 1
+                auto *cable = copperCableForElectronicCircuit.GetFirst(); // Take 3 copper cables from conveyor 1
                 delete cable;                               // Remove the cable from memory
             }
 
@@ -93,7 +93,7 @@ class CircuitAssemblyProcess : public Process {
             std::cout << "Electronic circuit created and added to the queue. Total circuits: " << electronic_circuits_created << "\n";
             std::cout << "Processes in electronicCircuitQueue: " << electronicCircuitQueue.Length() << "\n";
 
-            if (!ironPlateQueue1.Empty() && copperCableQueue1.Length() >= 3) {
+            if (!ironPlateQueueForCircuit.Empty() && copperCableForElectronicCircuit.Length() >= 3) {
                 (new CircuitAssemblyProcess())->Activate(); // Activate another circuit assembly process if more resources are available
             }
         }
@@ -107,15 +107,15 @@ class IronPlateSplitter : public Process {
             if (!ironPlateQueue.Empty()) {
                 auto *plate = ironPlateQueue.GetFirst(); // Take iron plate from the queue
 
-                if (IrontoggleSplitter) {
-                    ironPlateQueue1.Insert(plate); // Insert into conveyor 1
+                if (!IronToggleSplitter) {
+                    ironPlateQueueForSulfur.Insert(plate); // Insert into conveyor 1
                     std::cout << "Iron plate sent to conveyor 1\n";
                 } else {
-                    ironPlateQueue2.Insert(plate); // Insert into conveyor 2
+                    ironPlateQueueForCircuit.Insert(plate); // Insert into conveyor 2
                     std::cout << "Iron plate sent to conveyor 2\n";
                 }
 
-                IrontoggleSplitter = !IrontoggleSplitter; // Toggle the flag for the next plate
+                IronToggleSplitter = !IronToggleSplitter; // Toggle the flag for the next plate
             } else {
                 Passivate(); // Wait until a plate appears in the queue
             }
@@ -157,16 +157,16 @@ class CopperCableSplitter : public Process {
             if (!copperCableQueue.Empty()) {
                 auto *cable = copperCableQueue.GetFirst(); // Take copper cable from the queue
 
-                if (CoppertoggleSplitter) {
-                    copperCableQueue1.Insert(cable); // Insert into conveyor 1
+                if (!CopperToggleSplitter) {
+                    copperCableForAdvanceElectronicCircuit.Insert(cable); // Insert into conveyor 1
                     (new CircuitAssemblyProcess())->Activate(); // Activate the cable process
                     std::cout << "Copper cable sent to conveyor 1\n";
                 } else {
-                    copperCableQueue2.Insert(cable); // Insert into conveyor 2
+                    copperCableForElectronicCircuit.Insert(cable); // Insert into conveyor 2
                     std::cout << "Copper cable sent to conveyor 2\n";
                 }
 
-                CoppertoggleSplitter = !CoppertoggleSplitter; // Toggle the flag for the next cable
+                CopperToggleSplitter = !CopperToggleSplitter; // Toggle the flag for the next cable
             } else {
                 Passivate(); // Wait until a cable appears in the queue
             }
@@ -325,10 +325,10 @@ int main() {
     std::cout << "Simulation finished. Copper Ore mined: " << copper_ore_mined << "\n";
     std::cout << "Simulation finished. Copper Plates created: " << copper_plates_created << "\n";
     std::cout << "Simulation finished. Copper Cables created: " << copper_cables_created << "\n";
-    std::cout << "Copper cable queue 1: " << copperCableQueue1.Length() << "\n";
-    std::cout << "Copper cable queue 2: " << copperCableQueue2.Length() << "\n";
-    std::cout << "Iron plate queue 1: " << ironPlateQueue1.Length() << "\n";
-    std::cout << "Iron plate queue 2: " << ironPlateQueue2.Length() << "\n";
+    std::cout << "Copper cables for El.circuit: " << copperCableForElectronicCircuit.Length() << "\n";
+    std::cout << "Copper cables for Adv.El.circuit: " << copperCableForAdvanceElectronicCircuit.Length() << "\n";
+    std::cout << "Iron plates for Sulfur: " << ironPlateQueueForSulfur.Length() << "\n";
+    std::cout << "Iron plates for El.circuit: " << ironPlateQueueForCircuit.Length() << "\n";
     std::cout << "Electronic circuits created: " << electronic_circuits_created << "\n";
     std::cout << "Electronic circuit queue: " << electronicCircuitQueue.Length() << "\n";
     best_values();
