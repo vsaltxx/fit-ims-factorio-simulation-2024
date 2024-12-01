@@ -2,7 +2,8 @@
 #include <iostream>
 
 // Constants
-const double SIMULATION_TIME = 10; // Total simulation time in seconds
+const double SIMULATION_TIME = 10;
+         // Total simulation time in seconds
 
 const double COAL_MINING_TIME = 2.0;
 const double WATER_PROCESS_TIME = 1.0;
@@ -15,6 +16,9 @@ const double COPPER_MINING_TIME = 2.0;
 const double COPPER_SMELTING_TIME = 0.6;
 const double CABLE_PRODUCTION_TIME = 1.0; 
 const double CIRCUIT_ASSEMBLY_TIME = 1.0;
+const double SULFURIC_ACID_PRODUCTION_TIME = 1.0;
+const double ADVANCED_CIRCUIT_PRODUCTION_TIME = 12.0;
+const double PROCESSOR_PRODUCTION_TIME = 7.5;
 
 const int WATER_UNIT_BATCH = 1200;
 const int CRUDE_OIL_BATCH = 100;
@@ -22,6 +26,9 @@ const int PETROLEUM_GAS_BATCH = 45;
 const int SULFUR_BATCH = 2;
 const int PLASTIC_BAR_BATCH = 2;
 const int COPPER_CABLE_BATCH = 2;
+const int SULFURIC_ACID_BATCH = 50;
+const int ADVANCED_CIRCUIT_BATCH = 1;
+const int PROCESSOR_BATCH = 1;
 
 const int  MIN_CRUDE_OIL_FOR_GAS = 100;
 const int  MIN_WATER_FOR_SULFUR = 30;
@@ -44,6 +51,9 @@ const int NUM_IRON_FURNACES = 1;
 const int NUM_IRON_ORE_DRILLS = 4;
 const int NUM_CABLE_ASSEMBLY_MACHINES = 1;
 const int NUM_ELECTRONIC_CIRCUIT_ASSEMBLY_MACHINES = 1;
+const int NUM_SULFURIC_ACID_CHEMICAL_PLANTS = 1;
+const int NUM_ADVANCED_CIRCUIT_ASSEMBLERS = 1;
+const int NUM_PROCESSOR_ASSEMBLERS = 1;
 
 // Global variables
 int iron_plates_produced = 0;
@@ -60,9 +70,13 @@ int copper_ore_produced = 0;
 int copper_plates_produced = 0;
 int copper_cables_produced = 0;
 int electronic_circuits_produced = 0;
+int sulfuric_acid_produced = 0;
+int advanced_electronic_circuits_produced = 0;
+int processors_produced = 0;
 
 bool CopperToggleSplitter = true; 
-bool IronToggleSplitter = true;   
+bool IronToggleSplitter = true;
+bool ElectronicCircuitToggleSplitter = true;
 
 
 // Queues
@@ -84,6 +98,11 @@ Queue copperCableForAdvanceElectronicCircuit("Copper Cable Queue 2 (For Advance 
 Queue ironPlateQueueForCircuit("Iron Plate Queue 2 (For Electronic Circuit)");
 Queue ironPlateQueueForSulfur("Iron Plate Queue 1 (For Sulfuric Acid)");
 Queue electronicCircuitQueue("Electronic Circuit Queue");
+Queue electronicCircuitQueueForAdvance("Electronic Circuit Queue 2 (For Advance Electronic Circuit)");
+Queue electronicCircuitQueueForProcessingUnit("Electronic Circuit Queue 1 (For Electronic Circuit)");
+Queue sulfuricAcidQueue("sulfuricAcid Queue");
+Queue advancedElectronicCircuitQueue("Advanced Electronic Circuit Queue");
+Queue processorQueue("Processor Queue");
 
 // Store
 Store waterWellPump("Water Well Pump", NUM_WATER_PUMPS);
@@ -100,9 +119,28 @@ Store copperMiningDrills("Copper Electrical Mining Drills", NUM_COPPER_DRILLS);
 Store copperFurnaces("Copper Electrical Furnaces", NUM_COPPER_FURNACES);
 Store copperCableAssemblyMachines("Assembly Machines", NUM_CABLE_ASSEMBLY_MACHINES);
 Store electronicCircuitAssemblyMachines("Assembly Machines", NUM_ELECTRONIC_CIRCUIT_ASSEMBLY_MACHINES);
+Store sulfuricAcidChemicalPlant("Liquid Chemical Plant", NUM_SULFURIC_ACID_CHEMICAL_PLANTS);
+Store advancedCircuitAssembler("Advanced Circuit Assembler", NUM_ADVANCED_CIRCUIT_ASSEMBLERS);
+Store processorAssembler("Processor Assembler", NUM_PROCESSOR_ASSEMBLERS);
 
 
 class SulfurProcess : public Process {
+    void Behavior() override {
+        // This process doesn't perform any actions itself
+    }
+};
+class SulfuricAcidProcess : public Process {
+    void Behavior() override {
+        // This process doesn't perform any actions itself
+    }
+};
+class AdvancedElectronicCircuitProcess : public Process {
+    void Behavior() override {
+        // This process doesn't perform any actions itself
+    }
+};
+
+class ProcessorProcess : public Process {
     void Behavior() override {
         // This process doesn't perform any actions itself
     }
@@ -127,6 +165,65 @@ class SulfurProductionProcess : public Process {
             sulfur_produced += SULFUR_BATCH;
             if (Time + CH_PLANT_TIME <= SIMULATION_TIME && waterQueue.Length() >= MIN_WATER_FOR_SULFUR && petroleumGasForSulfurQueue.Length() >= MIN_GAS_FOR_SULFUR && sulfurChemicalPlant.Free() > 0) {
                 (new SulfurProductionProcess())->Activate();
+            }
+        }
+    }
+};
+class ProcessorProductionProcess : public Process {
+    void Behavior() override {
+        if (electronicCircuitQueueForProcessingUnit.Length() >= 20 && advancedElectronicCircuitQueue.Length() >= 2 && sulfuricAcidQueue.Length() >= 5) {
+            for (int i = 0; i < 20; ++i) {
+                auto *circuit = electronicCircuitQueueForProcessingUnit.GetFirst();
+                delete circuit;
+            }
+            for (int i = 0; i < 2; ++i) {
+                auto *advancedCircuit = advancedElectronicCircuitQueue.GetFirst();
+                delete advancedCircuit;
+            }
+            for (int i = 0; i < 5; ++i) {
+                auto *sulfuricAcid = sulfuricAcidQueue.GetFirst();
+                delete sulfuricAcid;
+            }
+
+            Enter(processorAssembler); // Seize the processor assembler
+            Wait(PROCESSOR_PRODUCTION_TIME); // Production time
+            Leave(processorAssembler); // Release the processor assembler
+
+            auto *processor = new ProcessorProcess(); // Create a unique processor process
+            processorQueue.Insert(processor); // Insert the processor into the queue
+            processors_produced += PROCESSOR_BATCH; // Increment the processors counter
+
+            std::cout << "Processor produced and added to the queue. Total processors: "
+                      << processors_produced << " units.\n";
+
+            // Check again if more resources are available for another processor production process
+            if (Time + PROCESSOR_PRODUCTION_TIME <= SIMULATION_TIME && electronicCircuitQueueForProcessingUnit.Length() >= 20 && advancedElectronicCircuitQueue.Length() >= 2 && sulfuricAcidQueue.Length() >= 5 && processorAssembler.Free() > 0) {
+                (new ProcessorProductionProcess())->Activate();
+            }
+        }
+    }
+};
+
+class ElectronicCircuitSplitter : public Process {
+    void Behavior() override {
+        while (1) {
+            if (!electronicCircuitQueue.Empty()) {
+                auto *circuit = electronicCircuitQueue.GetFirst(); // Take electronic circuit from the queue
+
+                if (!ElectronicCircuitToggleSplitter) {
+                    // Insert into the first queue for processors
+                    electronicCircuitQueueForProcessingUnit.Insert(circuit);
+                    (new ProcessorProductionProcess())->Activate();
+                    std::cout << "Electronic circuit sent to processorQueue\n";
+                } else {
+                    // Insert into the second queue for advanced electronic circuits
+                    electronicCircuitQueueForAdvance.Insert(circuit);
+                    std::cout << "Electronic circuit sent to advancedElectronicCircuitQueue\n";
+                }
+
+                ElectronicCircuitToggleSplitter = !ElectronicCircuitToggleSplitter; // Toggle the flag for the next circuit
+            } else {
+                Passivate(); // Wait until a circuit appears in the queue
             }
         }
     }
@@ -161,6 +258,8 @@ class OilRefiningProcess : public Process {
     }
 };
 
+
+
 class PumpjackProcess : public Process {
     void Behavior() override {
         Enter(pumpjackForSulfur);
@@ -177,6 +276,77 @@ class PumpjackProcess : public Process {
 
     }
 };
+class SulfuricAcidProductionProcess : public Process {
+    void Behavior() override {
+        if (waterQueue.Length() >= 100 && ironPlateQueueForSulfur.Length() >= 1 && sulfurQueue.Length() >= 5) {
+            for (int i = 0; i < 100; ++i) {
+                auto *water = waterQueue.GetFirst();
+                delete water;
+            }
+            auto *ironPlate = ironPlateQueueForSulfur.GetFirst();
+            delete ironPlate;
+            for (int i = 0; i < 5; ++i) {
+                auto *sulfur = sulfurQueue.GetFirst();
+                delete sulfur;
+            }
+
+            Enter(sulfurChemicalPlant); // Seize the liquid chemical plant
+            Wait(SULFURIC_ACID_PRODUCTION_TIME); // Production time
+            Leave(sulfurChemicalPlant); // Release the liquid chemical plant
+
+            for (int i = 0; i < SULFURIC_ACID_BATCH; ++i) {
+                auto *liquid = new SulfuricAcidProcess(); // Create a unique liquid process
+                sulfuricAcidQueue.Insert(liquid);         // Insert the liquid into the queue
+            }
+            sulfuric_acid_produced += SULFURIC_ACID_BATCH; // Increment the liquid production counter
+
+            std::cout << "Liquid produced and added to the queue. Total liquid: "
+                      << sulfuric_acid_produced << " units.\n";
+
+            // Check again if more resources are available for another liquid production process
+            if (Time + SULFURIC_ACID_PRODUCTION_TIME <= SIMULATION_TIME && waterQueue.Length() >= 100 && ironPlateQueue.Length() >= 1 && sulfurQueue.Length() >= 5 && sulfuricAcidChemicalPlant.Free() > 0) {
+                (new SulfuricAcidProductionProcess())->Activate();
+            }
+        }
+    }
+};
+
+class AdvancedElectronicCircuitProductionProcess : public Process {
+    void Behavior() override {
+        if (electronicCircuitQueueForAdvance.Length() >= 2 && plasticBarQueue.Length() >= 2 && copperCableForAdvanceElectronicCircuit.Length() >= 4) {
+            for (int i = 0; i < 2; ++i) {
+                auto *circuit = electronicCircuitQueueForAdvance.GetFirst();
+                delete circuit;
+            }
+            for (int i = 0; i < 2; ++i) {
+                auto *plastic = plasticBarQueue.GetFirst();
+                delete plastic;
+            }
+            for (int i = 0; i < 4; ++i) {
+                auto *cable = copperCableForAdvanceElectronicCircuit.GetFirst();
+                delete cable;
+            }
+
+            Enter(advancedCircuitAssembler); // Seize the advanced circuit assembler
+            Wait(ADVANCED_CIRCUIT_PRODUCTION_TIME); // Production time
+            Leave(advancedCircuitAssembler); // Release the advanced circuit assembler
+
+            auto *advancedCircuit = new AdvancedElectronicCircuitProcess(); // Create a unique advanced electronic circuit process
+            advancedElectronicCircuitQueue.Insert(advancedCircuit); // Insert the advanced electronic circuit into the queue
+            advanced_electronic_circuits_produced += ADVANCED_CIRCUIT_BATCH; // Increment the advanced electronic circuits counter
+
+            std::cout << "Advanced electronic circuit produced and added to the queue. Total advanced circuits: "
+                      << advanced_electronic_circuits_produced << " units.\n";
+
+            // Check again if more resources are available for another advanced electronic circuit production process
+            if (Time + ADVANCED_CIRCUIT_PRODUCTION_TIME <= SIMULATION_TIME && electronicCircuitQueueForAdvance.Length() >= 2 && plasticBarQueue.Length() >= 2 && copperCableForAdvanceElectronicCircuit.Length() >= 4 && advancedCircuitAssembler.Free() > 0) {
+                (new AdvancedElectronicCircuitProductionProcess())->Activate();
+            }
+        }
+    }
+};
+
+
 
 class WaterBatchProcess : public Process {
     void Behavior() override {
@@ -244,6 +414,9 @@ class CircuitAssemblyProcess : public Process {
             if (Time + CIRCUIT_ASSEMBLY_TIME <= SIMULATION_TIME && !ironPlateQueueForCircuit.Empty() && copperCableForElectronicCircuit.Length() >= MIN_COPPER_CABLE_FOR_EL_CIRCUIT) {
                 (new CircuitAssemblyProcess())->Activate(); // Activate another circuit assembly process if more resources are available
             }
+            if (!electronicCircuitQueue.Empty()) {
+                (new ElectronicCircuitSplitter())->Activate(); // Activate the splitter process
+            }
         }
     }
 };
@@ -256,9 +429,11 @@ class IronPlateSplitter : public Process {
 
                 if (!IronToggleSplitter) {
                     ironPlateQueueForSulfur.Insert(plate); // Insert into conveyor 1
+                    (new SulfuricAcidProductionProcess())->Activate();
                     std::cout << "Iron plate sent to conveyor 1\n";
                 } else {
                     ironPlateQueueForCircuit.Insert(plate); // Insert into conveyor 2
+
                     std::cout << "Iron plate sent to conveyor 2\n";
                 }
 
@@ -303,10 +478,12 @@ class CopperCableSplitter : public Process {
 
                 if (!CopperToggleSplitter) {
                     copperCableForAdvanceElectronicCircuit.Insert(cable); // Insert into conveyor 1
-                    (new CircuitAssemblyProcess())->Activate(); // Activate the cable process
+                     // Activate the cable process
+                    (new AdvancedElectronicCircuitProductionProcess())->Activate();
                     std::cout << "Copper cable sent to conveyor 1\n";
                 } else {
                     copperCableForElectronicCircuit.Insert(cable); // Insert into conveyor 2
+                    (new CircuitAssemblyProcess())->Activate();
                     std::cout << "Copper cable sent to conveyor 2\n";
                 }
 
