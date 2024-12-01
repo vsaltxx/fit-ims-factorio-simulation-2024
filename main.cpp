@@ -2,7 +2,7 @@
 #include <iostream>
 
 // Constants
-const double SIMULATION_TIME = 12; // Total simulation time in seconds
+const double SIMULATION_TIME = 10; // Total simulation time in seconds
 
 const double MINING_TIME = 2.0;   // Time to mine iron ore
 const double SMELTING_TIME = 0.6; // Time to smelt iron ore into an iron plate
@@ -20,12 +20,15 @@ const int  MIN_CRUDE_OIL_FOR_GAS = 100;
 const int  MIN_WATER_FOR_SULFUR = 30;
 const int  MIN_GAS_FOR_SULFUR = 30;
 
-const int NUM_FURNACES = 1;       // Number of furnaces
-const int NUM_DRILLS = 4;         // Number of mining drills
+const int NUM_FURNACES = 1;
+const int NUM_IRON_ORE_DRILLS = 4; // Number of iron ore mining drills// Number of furnaces
+const int NUM_COAL_DRILLS = 4;     // Number of coal mining drills         // Number of mining drills
 const int NUM_WATER_PUMPS = 1;
 const int NUM_PUMPJACKS = 1;
+const int NUM_NEW_PUMPJACKS = 1; // Number of new pumpjacks
 const int NUM_OIL_REFINERIES = 1;           // Number of oil refineries
-const int NUM_CH_PLANTS = 1;
+const int NUM_SULFUR_PLANTS = 1; // Number of sulfur chemical plants
+const int NUM_PLASTIC_PLANTS = 1; // Number of plastic chemical plants
 
 
 // Global variables
@@ -43,6 +46,8 @@ int petroleum_gas_produced = 0;             // Counter for total petroleum gas p
 int petroleum_gas_left = 0;
 
 int sulfur_produced = 0;
+int coal_units_left = 0;
+int plastic_produced = 0;
 
 // Queue
 Queue ironOreQueue("Iron Ore Queue");
@@ -51,16 +56,25 @@ Queue waterQueue("Water Queue");
 Queue crudeOilQueue("Crude Oil Queue");
 Queue sulfurQueue("Sulfur Queue");
 Queue petroleumGasQueue("Petroleum Gas Queue");
+Queue coalQueue("Coal Queue");
+Queue plasticQueue("Plastic Queue");
 
+Queue newCrudeOilQueue("New Crude Oil Queue");
+Queue newPetroleumGasQueue("New Petroleum Gas Queue");
+Queue newPlasticQueue("New Plastic Queue");
 
 // Store
-Store miningDrills("Electric Mining Drills", NUM_DRILLS); // Store for mining drills
+Store ironOreDrills("Iron Ore Mining Drills", NUM_IRON_ORE_DRILLS);
 Store electricalFurnaces("Electrical Furnaces", NUM_FURNACES); // Store for furnaces
 Store waterWellPump("Water Well Pump", NUM_WATER_PUMPS);    // Store for water well pumps
 Store pumpjack("Pumpjack", NUM_PUMPJACKS);    // Store for pumpjacks
 Store oilRefinery("Oil Refinery", NUM_OIL_REFINERIES); // Store for oil refineries
-Store chemicalPlant("Chemical Plant", NUM_CH_PLANTS);
+Store coalDrills("Coal Mining Drills", NUM_COAL_DRILLS);
 
+Store newPumpjack("New Pumpjack", NUM_NEW_PUMPJACKS);
+Store newOilRefinery("New Oil Refinery", NUM_OIL_REFINERIES);
+Store sulfurChemicalPlant("Sulfur Chemical Plant", NUM_SULFUR_PLANTS);
+Store plasticChemicalPlant("Plastic Chemical Plant", NUM_PLASTIC_PLANTS);
 
 class SulfurProcess : public Process {
     void Behavior() override {
@@ -81,9 +95,9 @@ class SulfurProductionProcess : public Process {
             water_units_left -= 30;
             petroleum_gas_left -= 30;
 
-            Enter(chemicalPlant);            // Seize the chemical plant
+            Enter(sulfurChemicalPlant);            // Seize the sulfur chemical plant
             Wait(CH_PLANT_TIME);             // Chemical processing time (1 second)
-            Leave(chemicalPlant);            // Release the chemical plant
+            Leave(sulfurChemicalPlant);            // Release the sulfur chemical plant
 
             for (int i = 0; i < 2; ++i) {
                 auto *sulfur = new SulfurProcess(); // Create 2 units of sulfur
@@ -95,7 +109,7 @@ class SulfurProductionProcess : public Process {
                       << sulfur_produced << " units.\n";
 
             // Check again if more resources are available for another sulfur process
-            if (Time + CH_PLANT_TIME <= SIMULATION_TIME && waterQueue.Length() >= 30 && petroleumGasQueue.Length() >= 30 && chemicalPlant.Free() > 0) {
+            if (Time + CH_PLANT_TIME <= SIMULATION_TIME && waterQueue.Length() >= 30 && petroleumGasQueue.Length() >= 30 && sulfurChemicalPlant.Free() > 0) {
                 (new SulfurProductionProcess())->Activate();
             }
         }
@@ -132,8 +146,9 @@ class OilRefiningProcess : public Process {
 
             std::cout << "Petroleum gas produced and added to the queue. Total petroleum gas: "
                       << petroleum_gas_produced << " units.\n";
-            if(Time + OIL_REFINING_TIME < SIMULATION_TIME && chemicalPlant.Free() > 0){
+            if(Time + OIL_REFINING_TIME < SIMULATION_TIME && sulfurChemicalPlant.Free() > 0){
                 (new SulfurProductionProcess())->Activate();
+
             }
         }
     }
@@ -178,7 +193,7 @@ class WaterProductionProcess : public Process {
         water_units_left += 1200;
 
         // Activate sulfur production if conditions are met
-        if (Time + CH_PLANT_TIME <= SIMULATION_TIME && chemicalPlant.Free() > 0) {
+        if (Time + CH_PLANT_TIME <= SIMULATION_TIME && sulfurChemicalPlant.Free() > 0) {
             (new SulfurProductionProcess())->Activate();
         }
 
@@ -210,8 +225,8 @@ class SmeltingProcess : public Process {
             ironPlateQueue.Insert(plate);        // Insert the iron plate into the queue
             iron_plates_produced++;               // Increment the iron plates counter
 
-           // std::cout << "Iron plate created and added to the queue. Total plates: " << iron_plates_produced << "\n";
-           // std::cout << "Processes in ironPlateQueue: " << ironPlateQueue.Length() << "\n";
+            // std::cout << "Iron plate created and added to the queue. Total plates: " << iron_plates_produced << "\n";
+            // std::cout << "Processes in ironPlateQueue: " << ironPlateQueue.Length() << "\n";
 
             // If more iron ore is available, activate another smelting process
             if (Time + SMELTING_TIME <= SIMULATION_TIME && !ironOreQueue.Empty()) {
@@ -231,17 +246,14 @@ class OreProcess : public Process {
 // Process class: Mining iron ore
 class MiningProcess : public Process {
     void Behavior() override {
-        Enter(miningDrills);       // Enter the store (seize a mining drill)
-        Wait(MINING_TIME);         // Mining takes 2 seconds
-        Leave(miningDrills);       // Leave the store (release the mining drill)
+        Enter(ironOreDrills);       // Enter the store (seize an iron ore mining drill)
+        Wait(MINING_TIME);          // Mining takes 2 seconds
+        Leave(ironOreDrills);       // Leave the store (release the iron ore mining drill)
 
         auto *ore = new OreProcess(); // Create a unique ore process
-        ironOreQueue.Insert(ore);   // Insert mined iron ore into the queue
-        iron_ore_mined++;            // Increment mined iron ore counter
+        ironOreQueue.Insert(ore);     // Insert mined iron ore into the queue
+        iron_ore_mined++;             // Increment mined iron ore counter
         iron_ore_left++;
-
-        //std::cout << "Iron ore mined and added to the queue. Total mined: " << iron_ore_mined << "\n";
-        //std::cout << "Processes in ironOreQueue: " << ironOreQueue.Length() << "\n";
 
         // If any furnace is available, activate smelting process
         if (Time + SMELTING_TIME <= SIMULATION_TIME && electricalFurnaces.Free() > 0 && !ironOreQueue.Empty()) {
@@ -249,7 +261,6 @@ class MiningProcess : public Process {
         }
     }
 };
-
 
 // Event class: Oil production generator
 class OilProductionGenerator : public Event {
@@ -264,6 +275,8 @@ class OilProductionGenerator : public Event {
     }
 };
 
+
+
 // Event class: Water production generator
 class WaterProductionGenerator : public Event {
     void Behavior() override {
@@ -277,12 +290,145 @@ class WaterProductionGenerator : public Event {
     }
 };
 
+class NewPlasticProcess : public Process {
+    void Behavior() override {
+        // This process doesn't perform any actions itself
+    }
+};
+
+
+class NewPlasticProductionProcess : public Process {
+    void Behavior() override {
+        if (newPetroleumGasQueue.Length() >= 20 && coalQueue.Length() >= 1) {
+            for (int i = 0; i < 20; ++i) {
+                auto *petroleumGas = newPetroleumGasQueue.GetFirst(); // Remove 20 units of petroleum gas from the queue
+                delete petroleumGas;                                 // Free the memory
+            }
+            auto *coal = coalQueue.GetFirst(); // Remove 1 unit of coal from the queue
+            delete coal;                      // Free the memory
+
+            petroleum_gas_left -= 20;
+            coal_units_left -= 1;
+
+            Enter(plasticChemicalPlant);   // Seize the plastic chemical plant
+            Wait(CH_PLANT_TIME);              // Chemical processing time (1 second)
+            Leave(plasticChemicalPlant);   // Release the plastic chemical plant
+
+            for (int i = 0; i < 2; ++i) {
+                auto *plastic = new NewPlasticProcess(); // Create 2 units of plastic
+                newPlasticQueue.Insert(plastic);         // Insert the plastic into the queue
+            }
+            plastic_produced += 2; // Increment plastic production counter
+
+            std::cout << "New plastic produced and added to the queue. Total plastic: "
+                      << plastic_produced << " units.\n";
+
+            // Check again if more resources are available for another plastic process
+            if (Time + CH_PLANT_TIME <= SIMULATION_TIME && newPetroleumGasQueue.Length() >= 20 && coalQueue.Length() >= 1 && plasticChemicalPlant.Free() > 0) {
+                (new NewPlasticProductionProcess())->Activate();
+            }
+        }
+    }
+};
+
+
+class NewCrudeOilBatchProcess : public Process {
+    void Behavior() override {
+        // This process doesn't perform any actions itself
+    }
+};
+
+class NewOilRefiningProcess : public Process {
+    void Behavior() override {
+        if (newCrudeOilQueue.Length() >= 100) {
+            for (int i = 0; i < 100; ++i) {
+                auto *crudeOil = newCrudeOilQueue.GetFirst(); // Remove 100 units of crude oil from the queue
+                delete crudeOil;                             // Free the memory
+            }
+            crude_oil_left -= 100;
+
+            Enter(newOilRefinery);            // Seize an oil refinery
+            Wait(OIL_REFINING_TIME);          // Refining takes 5 seconds
+            Leave(newOilRefinery);            // Release the oil refinery
+
+            for (int i = 0; i < 45; ++i) {
+                auto *petroleumGas = new NewCrudeOilBatchProcess(); // Create a unique petroleum gas process
+                newPetroleumGasQueue.Insert(petroleumGas);          // Insert the petroleum gas into the queue
+            }
+            petroleum_gas_produced += 45; // Increment petroleum gas production counter
+            petroleum_gas_left += 45;
+
+            std::cout << "New petroleum gas produced and added to the queue. Total petroleum gas: "
+                      << petroleum_gas_produced << " units.\n";
+            if ( plasticChemicalPlant.Free() > 0) {
+                std::cout << "Plastic plant activated\n";
+                (new NewPlasticProductionProcess())->Activate();
+            }
+        }
+    }
+};
+
+class NewPumpjackProcess : public Process {
+    void Behavior() override {
+        Enter(newPumpjack);                  // Enter the pumpjack store
+        Wait(PUMPJACK_PROCESS_TIME);         // Processing takes 1 second
+        Leave(newPumpjack);                  // Leave the pumpjack store
+
+        for (int i = 0; i < 100; ++i) {
+            auto *oilBatch = new NewCrudeOilBatchProcess(); // Create a unique crude oil batch process
+            newCrudeOilQueue.Insert(oilBatch);              // Insert the batch into the crude oil queue
+        }
+        crude_oil_produced += 100;  // Increment the processed crude oil units counter
+        crude_oil_left += 100;
+        if (Time + PUMPJACK_PROCESS_TIME < SIMULATION_TIME && newOilRefinery.Free() > 0) {
+            (new NewOilRefiningProcess())->Activate();
+        }
+    }
+};
+
+class NewOilProductionGenerator : public Event {
+    void Behavior() override {
+        // Activate the first new pumpjack process
+        (new NewPumpjackProcess())->Activate();
+
+        // Continue generating oil production if within simulation time
+        if (Time + PUMPJACK_PROCESS_TIME < SIMULATION_TIME) {
+            Activate(Time + PUMPJACK_PROCESS_TIME); // Schedule the next oil production event
+        }
+    }
+};
+class CoalProcess : public Process {
+    void Behavior() override {
+        // This process doesn't perform any actions itself
+    }
+};
+
+class CoalMiningProcess : public Process {
+    void Behavior() override {
+        Enter(coalDrills);       // Enter the store (seize a coal mining drill)
+        Wait(MINING_TIME);       // Mining takes 2 seconds
+        Leave(coalDrills);       // Leave the store (release the coal mining drill)
+
+        auto *coal = new CoalProcess(); // Create a unique coal process
+        coalQueue.Insert(coal);         // Insert mined coal into the queue
+        coal_units_left++;              // Increment mined coal counter
+
+        // If more drills are available, activate another coal mining process
+        if (Time + MINING_TIME <= SIMULATION_TIME && coalDrills.Free() > 0) {
+            (new CoalMiningProcess())->Activate();
+        }
+    }
+};
+
 // Event class: Resource generation
 class ResourceGenerator : public Event {
     void Behavior() override {
         // Activate multiple mining processes to utilize all drills
-        for (int i = 0; i < NUM_DRILLS; ++i) {
+        for (int i = 0; i < NUM_IRON_ORE_DRILLS; ++i) {
             (new MiningProcess())->Activate();
+        }
+        for (int i = 0; i < NUM_COAL_DRILLS; ++i) {
+            (new CoalMiningProcess())->Activate();
         }
 
         // Continue generating resources until the simulation time ends
@@ -293,10 +439,9 @@ class ResourceGenerator : public Event {
 };
 
 
-
 void best_values(){
 
-    int mine_ore = SIMULATION_TIME / MINING_TIME * NUM_DRILLS;
+    int mine_ore = SIMULATION_TIME / MINING_TIME * NUM_IRON_ORE_DRILLS;
     int smelt_ore = (SIMULATION_TIME-MINING_TIME) /SMELTING_TIME * NUM_FURNACES;
     int water = SIMULATION_TIME * WATER_UNIT_BATCH * NUM_WATER_PUMPS;
     std::cout << "Best values: \n";
@@ -313,6 +458,7 @@ int main() {
     (new OilProductionGenerator())->Activate();
     (new WaterProductionGenerator())->Activate();
     (new ResourceGenerator())->Activate();
+    (new NewOilProductionGenerator())->Activate();
 
     // Run the simulation
     Run();
@@ -335,7 +481,9 @@ int main() {
     std::cout << "Total petroleum gas left: " << petroleum_gas_left << " units.\n";
 
     std::cout << "Total sulfur produces: " << sulfur_produced << " units.\n";
-
+    std::cout << "Total coal : " << coalQueue.Length() << " units.\n";
+    std::cout << "Total plastic produced: " << newPlasticQueue.Length() << " units.\n";
+    std::cout << "Total petroleum gas for plastic: " << newPetroleumGasQueue.Length() << " units.\n";
     oilRefinery.Output();
     pumpjack.Output();
    // std::cout << "Processes in crudeOilQueue: " << waterQueue.Length() << "\n";
