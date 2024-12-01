@@ -30,11 +30,12 @@ const int  MIN_GAS_FOR_PLASTIC_BAR = 20;
 const int  MIN_COAL_FOR_PLASTIC_BAR = 1;
 const int  MIN_COPPER_CABLE_FOR_EL_CIRCUIT = 3;
 
-const int NUM_COAL_DRILLS = 1;
+const int NUM_COAL_DRILLS = 4;
 const int NUM_WATER_PUMPS = 1;
-const int NUM_PUMPJACKS = 1;
+const int NUM_PUMPJACKS_FOR_SULFUR = 1;
 const int NUM_PUMPJACKS_FOR_PLASTIC_BAR = 1;
-const int NUM_OIL_REFINERIES = 1;
+const int NUM_OIL_REFINERIES_FOR_SULFUR = 1;
+const int NUM_OIL_REFINERIES_FOR_PLASTIC_BAR = 1;
 const int NUM_SULFUR_PLANTS = 1;
 const int NUM_PLASTIC_PLANTS = 1;
 const int NUM_COPPER_FURNACES = 1;
@@ -68,12 +69,12 @@ bool IronToggleSplitter = true;
 Queue ironOreQueue("Iron Ore Queue");
 Queue ironPlateQueue("Iron Plate Queue");
 Queue waterQueue("Water Queue");
-Queue crudeOilQueue("Crude Oil Queue");
+Queue crudeOilForSulfurQueue("Crude Oil  Queue");
 Queue sulfurQueue("Sulfur Queue");
-Queue petroleumGasQueue("Petroleum Gas Queue");
+Queue petroleumGasForSulfurQueue("Petroleum Gas For Sulfur Queue ");
 Queue coalQueue("Coal Queue");
 Queue crudeOilForPlasticBarQueue("Crude Oil For Plastic Bar Queue");
-Queue petroleumGasForPlasticBarQueue("Petroleum Gas Foe Plastic Bar Queue");
+Queue petroleumGasForPlasticBarQueue("Petroleum Gas For Plastic Bar Queue");
 Queue plasticBarQueue("Plastic Bar Queue");
 Queue copperOreQueue("Copper Ore Queue");
 Queue copperPlateQueue("Copper Plate Queue");
@@ -86,11 +87,11 @@ Queue electronicCircuitQueue("Electronic Circuit Queue");
 
 // Store
 Store waterWellPump("Water Well Pump", NUM_WATER_PUMPS);
-Store pumpjack("Pumpjack", NUM_PUMPJACKS);
-Store oilRefinery("Oil Refinery", NUM_OIL_REFINERIES);
+Store pumpjackForSulfur("Pumpjack For Sulfur", NUM_PUMPJACKS_FOR_SULFUR);
+Store oilRefineryForSulfur("Oil Refinery For Sulfur", NUM_OIL_REFINERIES_FOR_SULFUR);
 Store coalDrills("Coal Mining Drills", NUM_COAL_DRILLS);
 Store pumpjackForPlasticBar("Pumpjack for Plastic Bar Production", NUM_PUMPJACKS_FOR_PLASTIC_BAR);
-Store oilRefineryForPlasticBar("New Oil Refinery", NUM_OIL_REFINERIES);
+Store oilRefineryForPlasticBar("Oil Refinery For Plastic Bar", NUM_OIL_REFINERIES_FOR_PLASTIC_BAR);
 Store sulfurChemicalPlant("Sulfur Chemical Plant", NUM_SULFUR_PLANTS);
 Store plasticChemicalPlant("Plastic Chemical Plant", NUM_PLASTIC_PLANTS);
 Store ironOreDrills("Iron Electric Mining Drills", NUM_IRON_ORE_DRILLS);
@@ -109,11 +110,11 @@ class SulfurProcess : public Process {
 
 class SulfurProductionProcess : public Process {
     void Behavior() override {
-        if (waterQueue.Length() >= MIN_WATER_FOR_SULFUR && petroleumGasQueue.Length() >= MIN_GAS_FOR_SULFUR) {
+        if (waterQueue.Length() >= MIN_WATER_FOR_SULFUR && petroleumGasForSulfurQueue.Length() >= MIN_GAS_FOR_SULFUR) {
             for (int i = 0; i < MIN_GAS_FOR_SULFUR; ++i) {
                 auto *water = waterQueue.GetFirst();
                 delete water;
-                auto *petroleumGas = petroleumGasQueue.GetFirst();
+                auto *petroleumGas = petroleumGasForSulfurQueue.GetFirst();
                 delete petroleumGas;
             }
             Enter(sulfurChemicalPlant);
@@ -124,7 +125,7 @@ class SulfurProductionProcess : public Process {
                 sulfurQueue.Insert(sulfur);
             }
             sulfur_produced += SULFUR_BATCH;
-            if (Time + CH_PLANT_TIME <= SIMULATION_TIME && waterQueue.Length() >= MIN_WATER_FOR_SULFUR && petroleumGasQueue.Length() >= MIN_GAS_FOR_SULFUR && sulfurChemicalPlant.Free() > 0) {
+            if (Time + CH_PLANT_TIME <= SIMULATION_TIME && waterQueue.Length() >= MIN_WATER_FOR_SULFUR && petroleumGasForSulfurQueue.Length() >= MIN_GAS_FOR_SULFUR && sulfurChemicalPlant.Free() > 0) {
                 (new SulfurProductionProcess())->Activate();
             }
         }
@@ -139,17 +140,17 @@ class CrudeOilBatchProcess  : public Process {
 
 class OilRefiningProcess : public Process {
     void Behavior() override {
-        if (crudeOilQueue.Length() >= MIN_CRUDE_OIL_FOR_GAS) {
+        if (crudeOilForSulfurQueue.Length() >= MIN_CRUDE_OIL_FOR_GAS) {
             for (int i = 0; i < MIN_CRUDE_OIL_FOR_GAS; ++i) {
-                auto *crudeOil = crudeOilQueue.GetFirst();
+                auto *crudeOil = crudeOilForSulfurQueue.GetFirst();
                 delete crudeOil;
             }
-            Enter(oilRefinery);
+            Enter(oilRefineryForSulfur);
             Wait(OIL_REFINING_TIME);
-            Leave(oilRefinery);
+            Leave(oilRefineryForSulfur);
             for (int i = 0; i < PETROLEUM_GAS_BATCH; ++i) {
                 auto *petroleumGas = new CrudeOilBatchProcess();
-                petroleumGasQueue.Insert(petroleumGas);
+                petroleumGasForSulfurQueue.Insert(petroleumGas);
             }
             petroleum_gas_produced += PETROLEUM_GAS_BATCH;
             if(Time + OIL_REFINING_TIME < SIMULATION_TIME && sulfurChemicalPlant.Free() > 0){
@@ -162,15 +163,15 @@ class OilRefiningProcess : public Process {
 
 class PumpjackProcess : public Process {
     void Behavior() override {
-        Enter(pumpjack);
+        Enter(pumpjackForSulfur);
         Wait(PUMPJACK_PROCESS_TIME);
-        Leave(pumpjack);
+        Leave(pumpjackForSulfur);
         for (int i = 0; i < MIN_CRUDE_OIL_FOR_GAS; ++i) {
             auto *oilBatch = new CrudeOilBatchProcess();
-            crudeOilQueue.Insert(oilBatch);
+            crudeOilForSulfurQueue.Insert(oilBatch);
         }
         crude_oil_produced += CRUDE_OIL_BATCH;
-        if (Time + PUMPJACK_PROCESS_TIME < SIMULATION_TIME && oilRefinery.Free() > 0) {
+        if (Time + PUMPJACK_PROCESS_TIME < SIMULATION_TIME && oilRefineryForSulfur.Free() > 0) {
             (new OilRefiningProcess())->Activate();
         }
 
@@ -536,8 +537,13 @@ void best_values() {
     int iron_smelt_ore = int((SIMULATION_TIME - IRON_MINING_TIME) / IRON_SMELTING_TIME) * NUM_IRON_FURNACES;
     int copper_mine_ore = int(SIMULATION_TIME / COPPER_MINING_TIME) * NUM_COPPER_DRILLS;
     int copper_smelt_ore = int((SIMULATION_TIME - COPPER_MINING_TIME) / COPPER_SMELTING_TIME) * NUM_COPPER_FURNACES;
-    int copper_cable = int((SIMULATION_TIME - COPPER_SMELTING_TIME - COPPER_MINING_TIME) / CABLE_PRODUCTION_TIME) * 2 * NUM_CABLE_ASSEMBLY_MACHINES;
+    int copper_cable = int((SIMULATION_TIME - COPPER_SMELTING_TIME - COPPER_MINING_TIME) / CABLE_PRODUCTION_TIME) * COPPER_CABLE_BATCH * NUM_CABLE_ASSEMBLY_MACHINES;
     int electronic_circuit = int((SIMULATION_TIME - COPPER_SMELTING_TIME - COPPER_MINING_TIME - CABLE_PRODUCTION_TIME) / CIRCUIT_ASSEMBLY_TIME) * NUM_ELECTRONIC_CIRCUIT_ASSEMBLY_MACHINES;
+    int sulfur = int((SIMULATION_TIME - PUMPJACK_PROCESS_TIME-OIL_REFINING_TIME) / CH_PLANT_TIME) * NUM_SULFUR_PLANTS * SULFUR_BATCH ;
+    int plastic = int((SIMULATION_TIME - PUMPJACK_PROCESS_TIME-OIL_REFINING_TIME) / CH_PLANT_TIME) * NUM_PLASTIC_PLANTS * PLASTIC_BAR_BATCH;
+    int coal = int(SIMULATION_TIME / COAL_MINING_TIME) * NUM_COAL_DRILLS;
+    int petroleum_gas_for_plastic = int((SIMULATION_TIME - PUMPJACK_PROCESS_TIME)/OIL_REFINING_TIME) * NUM_OIL_REFINERIES_FOR_PLASTIC_BAR * PETROLEUM_GAS_BATCH ;
+    int petroleum_gas_for_sulfur = int((SIMULATION_TIME - PUMPJACK_PROCESS_TIME)/OIL_REFINING_TIME) * NUM_OIL_REFINERIES_FOR_SULFUR * PETROLEUM_GAS_BATCH ;
     std::cout << "Best values: \n";
     std::cout << "Mining iron ore: " << iron_mine_ore << "\n";
     std::cout << "Smelting iron ore: " << iron_smelt_ore << "\n";
@@ -545,6 +551,11 @@ void best_values() {
     std::cout << "Smelting copper ore: " << copper_smelt_ore << "\n";
     std::cout << "Copper cable production: " << copper_cable << "\n";
     std::cout << "Electronic circuit production: " << electronic_circuit << "\n";
+    std::cout << "petroleum gas for plastic production: " << petroleum_gas_for_plastic << "\n";
+    std::cout << "Coal production: " << coal << "\n";
+    std::cout << "Plastic production: " << plastic << "\n";
+    std::cout << "petroleum gas for sulfur production: " << petroleum_gas_for_sulfur << "\n";
+    std::cout << "Sulfur production: " << sulfur << "\n";
 }
 
 int main() {
@@ -601,7 +612,7 @@ int main() {
     std::cout << "Copper Cables created: " << copper_cables_produced << "\n";
     std::cout << "Copper cables for El.circuit: " << copperCableForElectronicCircuit.Length() << "\n";
     std::cout << "Copper cables for Adv.El.circuit: " << copperCableForAdvanceElectronicCircuit.Length() << "\n";
-    std::cout << "Iron plates for Sulfur: " << ironPlateQueueForSulfur.Length() << "\n";
+    std::cout << "Iron plates for Sulfuric Acid: " << ironPlateQueueForSulfur.Length() << "\n";
     std::cout << "Iron plates for El.circuit: " << ironPlateQueueForCircuit.Length() << "\n";
     std::cout << "Electronic circuits created: " << electronic_circuits_produced << "\n";
     std::cout << "Electronic circuit queue: " << electronicCircuitQueue.Length() << "\n";
