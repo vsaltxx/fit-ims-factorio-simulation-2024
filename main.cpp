@@ -116,7 +116,6 @@ class SulfurProductionProcess : public Process {
     }
 };
 
-
 class CrudeOilBatchProcess  : public Process {
     void Behavior() override {
         // This process doesn't perform any actions itself
@@ -236,14 +235,12 @@ class SmeltingProcess : public Process {
     }
 };
 
-// Dummy process class for mined iron ore
 class OreProcess : public Process {
     void Behavior() override {
         // This process doesn't perform any actions
     }
 };
 
-// Process class: Mining iron ore
 class MiningProcess : public Process {
     void Behavior() override {
         Enter(ironOreDrills);       // Enter the store (seize an iron ore mining drill)
@@ -262,7 +259,6 @@ class MiningProcess : public Process {
     }
 };
 
-// Event class: Oil production generator
 class OilProductionGenerator : public Event {
     void Behavior() override {
         // Activate the first pumpjack process
@@ -275,9 +271,6 @@ class OilProductionGenerator : public Event {
     }
 };
 
-
-
-// Event class: Water production generator
 class WaterProductionGenerator : public Event {
     void Behavior() override {
         // Activate the first water production process
@@ -295,7 +288,6 @@ class NewPlasticProcess : public Process {
         // This process doesn't perform any actions itself
     }
 };
-
 
 class NewPlasticProductionProcess : public Process {
     void Behavior() override {
@@ -449,10 +441,10 @@ void best_values(){
     std::cout << "Smelting ore: " << smelt_ore << "\n";
     std::cout << "Water: " << water << "\n";
 }
-// Main function
+
 int main() {
     // Initialize simulation
-    Init(0, SIMULATION_TIME); // Simulation time from 0 to 1000 seconds
+    Init(0, SIMULATION_TIME);
 
     // Start the resource generation process
     (new OilProductionGenerator())->Activate();
@@ -486,7 +478,7 @@ int main() {
     std::cout << "Total petroleum gas for plastic: " << newPetroleumGasQueue.Length() << " units.\n";
     oilRefinery.Output();
     pumpjack.Output();
-   // std::cout << "Processes in crudeOilQueue: " << waterQueue.Length() << "\n";
+    // std::cout << "Processes in crudeOilQueue: " << waterQueue.Length() << "\n";
     //miningDrills.Output();
     //electricalFurnaces.Output();
     //waterWellPump.Output();
