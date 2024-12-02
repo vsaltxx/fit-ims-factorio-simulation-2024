@@ -315,14 +315,13 @@ class AdvancedElectronicCircuitProductionProcess : public Process {
     }
 };
 
-
 class ElectronicCircuitSplitterForAdvancedCircuits : public Process {
     void Behavior() override {
         while (1) {
             if (!electronicCircuitQueueForAdv.Empty()) {
                 auto *circuit = electronicCircuitQueueForAdv.GetFirst(); // Take electronic circuit from the queue
 
-                if (!ElectronicCircuitSplitterToggle) {
+                if (Time + ADVANCED_CIRCUIT_PRODUCTION_TIME <= SIMULATION_TIME && !ElectronicCircuitSplitterToggle) {
                     electronicCircuitQueueForAdvAfterSplit.Insert(circuit); // Insert into the queue for advanced electronic circuits
                     (new AdvancedElectronicCircuitProductionProcess())->Activate();
                 } else {
@@ -423,6 +422,7 @@ class CircuitAssemblyProcess : public Process {
         }
     }
 };
+
 class IronPlateSplitterForSulfur : public Process {
     void Behavior() override {
         while (1) {
