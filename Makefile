@@ -20,7 +20,7 @@ experiment1: experiment_1.cpp
 experiment2: experiment_2.cpp
 	$(CC) $(SRC3) -o experiment2 $(CFLAGS)
 
-experiment3: experiment3.cpp
+experiment3: experiment_3.cpp
 	$(CC) $(SRC4) -o experiment3 $(CFLAGS)
 
 run: main experiment1 experiment2 experiment3
