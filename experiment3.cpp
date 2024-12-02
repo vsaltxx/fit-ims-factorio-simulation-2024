@@ -2,7 +2,7 @@
 #include <iostream>
 
 // Constants
-const double SIMULATION_TIME = 133;// Total simulation time in seconds
+const double SIMULATION_TIME = 132;// Total simulation time in seconds
 
 const double COAL_MINING_TIME = 2.0;
 const double WATER_PROCESS_TIME = 1.0;
@@ -788,9 +788,9 @@ int main() {
 
     // Print results
     std::cout << "Simulation finished \n \n";
-    std::cout << "copper plates produced: " << copper_plates_produced << "\n";
-    std::cout << "Copper cables  produced: " << copper_cables_produced << "\n";
-    std::cout << "Electronic circuits produced: " << electronic_circuits_produced << "\n";
+
+    std::cout << "Duration of simulation: " << SIMULATION_TIME << "\n\n";
+
     // Print all queues
     std::cout << "Iron ore: " << ironOreQueue.Length() << "\n";
     std::cout << "Iron plates: " << ironPlateQueue.Length() << "\n";

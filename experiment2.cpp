@@ -723,6 +723,8 @@ int main() {
     // Print results
     std::cout << "Simulation finished \n \n";
 
+    std::cout << "Duration of simulation: " << SIMULATION_TIME << "\n\n";
+
     // Print all queues
     std::cout << "Iron ore: " << ironOreQueue.Length() << "\n";
     std::cout << "Iron plates: " << ironPlateQueue.Length() << "\n";

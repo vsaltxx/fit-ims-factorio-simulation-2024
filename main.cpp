@@ -2,7 +2,7 @@
 #include <iostream>
 
 // Constants
-const double SIMULATION_TIME = 10;// Total simulation time in seconds
+const double SIMULATION_TIME = 133;// Total simulation time in seconds
 
 const double COAL_MINING_TIME = 2.0;
 const double WATER_PROCESS_TIME = 1.0;
@@ -45,9 +45,6 @@ const int  MIN_EL_CIRCUIT_FOR_ADV_CIRCUIT = 2;
 const int  MIN_COPPER_CABLE_FOR_ADV_CIRCUIT = 4;
 const int  MIN_PLASTIC_BAR_FOR_ADV_CIRCUIT = 2;
 
-
-
-
 const int NUM_COAL_DRILLS = 4;
 const int NUM_WATER_PUMPS = 1;
 const int NUM_PUMPJACKS_FOR_SULFUR = 1;
@@ -88,7 +85,9 @@ int processors_produced = 0;
 bool CopperToggleSplitter = true;
 bool IronToggleSplitter = true;
 bool ElectronicCircuitToggleSplitter = true;
-
+bool IronPlateForSulfuricSplitterToggle = true;
+bool CopperCableSplitterToggle = true;
+bool ElectronicCircuitSplitterToggle = true;
 
 // Queues
 Queue ironOreQueue("Iron Ore Queue");
@@ -106,10 +105,13 @@ Queue copperPlateQueue("Copper Plate Queue");
 Queue copperCableQueue("Copper Cable Queue");
 Queue copperCableForElectronicCircuit("Copper Cable Queue 1 (For Electronic Circuit)");
 Queue copperCableForAdvancedElectronicCircuit("Copper Cable Queue 2 (For Advance Electronic Circuit)");
+Queue copperCableForAdvancedElectronicCircuitAfterSplit("Copper Cable Queue 2 (For Advance Electronic Circuit)");
 Queue ironPlateQueueForCircuit("Iron Plate Queue 2 (For Electronic Circuit)");
 Queue ironPlateQueueForSulfur("Iron Plate Queue 1 (For Sulfuric Acid)");
+Queue ironPlateQueueForSulfurAfterSplit("Iron Plate Queue 1 (For Sulfuric Acid)");
 Queue electronicCircuitQueue("Electronic Circuit Queue");
 Queue electronicCircuitQueueForAdv("Electronic Circuit Queue 2 (For Advance Electronic Circuit)");
+Queue electronicCircuitQueueForAdvAfterSplit("Electronic Circuit Queue 2 (For Advance Electronic Circuit)");
 Queue electronicCircuitQueueForProcessingUnit("Electronic Circuit Queue 1 (For Electronic Circuit)");
 Queue sulfuricAcidQueue("sulfuricAcid Queue");
 Queue advancedElectronicCircuitQueue("Advanced Electronic Circuit Queue");
@@ -211,27 +213,6 @@ class ProcessorProductionProcess : public Process {
     }
 };
 
-class ElectronicCircuitSplitter : public Process {
-    void Behavior() override {
-        while (1) {
-            if (!electronicCircuitQueue.Empty()) {
-                auto *circuit = electronicCircuitQueue.GetFirst(); // Take electronic circuit from the queue
-                if (!ElectronicCircuitToggleSplitter) {
-                    // Insert into the first queue for processors
-                    electronicCircuitQueueForProcessingUnit.Insert(circuit);
-                    (new ProcessorProductionProcess())->Activate();
-                } else {
-                    // Insert into the second queue for advanced electronic circuits
-                    electronicCircuitQueueForAdv.Insert(circuit);
-                }
-                ElectronicCircuitToggleSplitter = !ElectronicCircuitToggleSplitter; // Toggle the flag for the next circuit
-            } else {
-                Passivate(); // Wait until a circuit appears in the queue
-            }
-        }
-    }
-};
-
 class CrudeOilBatchProcess  : public Process {
     void Behavior() override {}
 };
@@ -277,13 +258,13 @@ class PumpjackProcess : public Process {
 
 class SulfuricAcidProductionProcess : public Process {
     void Behavior() override {
-        if (waterQueue.Length() >= MIN_WATER_FOR_SULFURIC_ACID && ironPlateQueueForSulfur.Length() >= MIN_IRON_PLATE_FOR_SULFURIC_ACID && sulfurQueue.Length() >= MIN_SULFUR_FOR_SULFURIC_ACID) {
+        if (waterQueue.Length() >= MIN_WATER_FOR_SULFURIC_ACID && ironPlateQueueForSulfurAfterSplit.Length() >= MIN_IRON_PLATE_FOR_SULFURIC_ACID && sulfurQueue.Length() >= MIN_SULFUR_FOR_SULFURIC_ACID) {
             for (int i = 0; i < MIN_WATER_FOR_SULFURIC_ACID; ++i) {
                 auto *water = waterQueue.GetFirst();
                 delete water;
             }
             for (int i = 0; i < MIN_IRON_PLATE_FOR_SULFURIC_ACID; ++i) {
-                auto *ironPlate = ironPlateQueueForSulfur.GetFirst();
+                auto *ironPlate = ironPlateQueueForSulfurAfterSplit.GetFirst();
                 delete ironPlate;
             }
             for (int i = 0; i < MIN_SULFUR_FOR_SULFURIC_ACID; ++i) {
@@ -307,9 +288,9 @@ class SulfuricAcidProductionProcess : public Process {
 
 class AdvancedElectronicCircuitProductionProcess : public Process {
     void Behavior() override {
-        if (electronicCircuitQueueForAdv.Length() >= MIN_EL_CIRCUIT_FOR_ADV_CIRCUIT && plasticBarQueue.Length() >= MIN_PLASTIC_BAR_FOR_ADV_CIRCUIT && copperCableForAdvancedElectronicCircuit.Length() >= MIN_COPPER_CABLE_FOR_ADV_CIRCUIT) {
+        if (electronicCircuitQueueForAdvAfterSplit.Length() >= MIN_EL_CIRCUIT_FOR_ADV_CIRCUIT && plasticBarQueue.Length() >= MIN_PLASTIC_BAR_FOR_ADV_CIRCUIT && copperCableForAdvancedElectronicCircuitAfterSplit.Length() >= MIN_COPPER_CABLE_FOR_ADV_CIRCUIT) {
             for (int i = 0; i < MIN_EL_CIRCUIT_FOR_ADV_CIRCUIT; ++i) {
-                auto *circuit = electronicCircuitQueueForAdv.GetFirst();
+                auto *circuit = electronicCircuitQueueForAdvAfterSplit.GetFirst();
                 delete circuit;
             }
             for (int i = 0; i < MIN_PLASTIC_BAR_FOR_ADV_CIRCUIT; ++i) {
@@ -317,7 +298,7 @@ class AdvancedElectronicCircuitProductionProcess : public Process {
                 delete plastic;
             }
             for (int i = 0; i < MIN_COPPER_CABLE_FOR_ADV_CIRCUIT; ++i) {
-                auto *cable = copperCableForAdvancedElectronicCircuit.GetFirst();
+                auto *cable = copperCableForAdvancedElectronicCircuitAfterSplit.GetFirst();
                 delete cable;
             }
             Enter(advancedCircuitAssembler);
@@ -327,8 +308,52 @@ class AdvancedElectronicCircuitProductionProcess : public Process {
             auto *advancedCircuit = new AdvancedElectronicCircuitProcess();
             advancedElectronicCircuitQueue.Insert(advancedCircuit);
             advanced_electronic_circuits_produced += ADVANCED_CIRCUIT_BATCH;
-            if (Time + ADVANCED_CIRCUIT_PRODUCTION_TIME <= SIMULATION_TIME && electronicCircuitQueueForAdv.Length() >= MIN_EL_CIRCUIT_FOR_ADV_CIRCUIT && plasticBarQueue.Length() >= MIN_PLASTIC_BAR_FOR_ADV_CIRCUIT && copperCableForAdvancedElectronicCircuit.Length() >= MIN_COPPER_CABLE_FOR_EL_CIRCUIT && advancedCircuitAssembler.Free() > 0) {
+            if (Time + ADVANCED_CIRCUIT_PRODUCTION_TIME <= SIMULATION_TIME && electronicCircuitQueueForAdvAfterSplit.Length() >= MIN_EL_CIRCUIT_FOR_ADV_CIRCUIT && plasticBarQueue.Length() >= MIN_PLASTIC_BAR_FOR_ADV_CIRCUIT && copperCableForAdvancedElectronicCircuitAfterSplit.Length() >= MIN_COPPER_CABLE_FOR_EL_CIRCUIT && advancedCircuitAssembler.Free() > 0) {
                 (new AdvancedElectronicCircuitProductionProcess())->Activate();
+            }
+        }
+    }
+};
+
+class ElectronicCircuitSplitterForAdvancedCircuits : public Process {
+    void Behavior() override {
+        while (1) {
+            if (!electronicCircuitQueueForAdv.Empty()) {
+                auto *circuit = electronicCircuitQueueForAdv.GetFirst(); // Take electronic circuit from the queue
+
+                if (Time + ADVANCED_CIRCUIT_PRODUCTION_TIME <= SIMULATION_TIME && !ElectronicCircuitSplitterToggle) {
+                    electronicCircuitQueueForAdvAfterSplit.Insert(circuit); // Insert into the queue for advanced electronic circuits
+                    (new AdvancedElectronicCircuitProductionProcess())->Activate();
+                } else {
+                    electronicCircuitQueueForProcessingUnit.Insert(circuit); // Insert into the queue for processors
+                    (new ProcessorProductionProcess())->Activate();
+                }
+
+                ElectronicCircuitSplitterToggle = !ElectronicCircuitSplitterToggle; // Toggle the flag for the next circuit
+            } else {
+                Passivate(); // Wait until a circuit appears in the queue
+            }
+        }
+    }
+};
+
+class ElectronicCircuitSplitter : public Process {
+    void Behavior() override {
+        while (1) {
+            if (!electronicCircuitQueue.Empty()) {
+                auto *circuit = electronicCircuitQueue.GetFirst(); // Take electronic circuit from the queue
+                if (!ElectronicCircuitToggleSplitter) {
+                    // Insert into the first queue for processors
+                    electronicCircuitQueueForProcessingUnit.Insert(circuit);
+                    (new ProcessorProductionProcess())->Activate();
+                } else {
+                    // Insert into the second queue for advanced electronic circuits
+                    electronicCircuitQueueForAdv.Insert(circuit);
+                    (new ElectronicCircuitSplitterForAdvancedCircuits())->Activate();
+                }
+                ElectronicCircuitToggleSplitter = !ElectronicCircuitToggleSplitter; // Toggle the flag for the next circuit
+            } else {
+                Passivate(); // Wait until a circuit appears in the queue
             }
         }
     }
@@ -398,6 +423,27 @@ class CircuitAssemblyProcess : public Process {
     }
 };
 
+class IronPlateSplitterForSulfur : public Process {
+    void Behavior() override {
+        while (1) {
+            if (!ironPlateQueueForSulfur.Empty()) {
+                auto *plate = ironPlateQueueForSulfur.GetFirst(); // Take iron plate from the queue
+
+                if (!IronPlateForSulfuricSplitterToggle) {
+
+                    ironPlateQueueForSulfurAfterSplit.Insert(plate);// Insert into the queue for electronic circuits
+                } else {
+                    ironPlateQueueForCircuit.Insert(plate);// Insert into the queue for sulfuric acid
+                }
+
+                IronPlateForSulfuricSplitterToggle  = !IronPlateForSulfuricSplitterToggle; // Toggle the flag for the next plate
+            } else {
+                Passivate(); // Wait until a plate appears in the queue
+            }
+        }
+    }
+};
+
 class IronPlateSplitter : public Process {
     void Behavior() override {
         while (1) {
@@ -405,6 +451,7 @@ class IronPlateSplitter : public Process {
                 auto *plate = ironPlateQueue.GetFirst(); // Take iron plate from the queue
                 if (!IronToggleSplitter) {
                     ironPlateQueueForSulfur.Insert(plate); // Insert into conveyor 1
+                    (new IronPlateSplitterForSulfur())->Activate();
                     (new SulfuricAcidProductionProcess())->Activate();
                 } else {
                     ironPlateQueueForCircuit.Insert(plate); // Insert into conveyor 2
@@ -438,6 +485,27 @@ class IronSmeltingProcess : public Process {
     }
 };
 
+class CopperCableSplitterForAdvancedCircuits : public Process {
+    void Behavior() override {
+        while (1) {
+            if (!copperCableForAdvancedElectronicCircuit.Empty()) {
+                auto *cable = copperCableForAdvancedElectronicCircuit.GetFirst(); // Take copper cable from the queue
+
+                if (!CopperCableSplitterToggle) {
+                    copperCableForAdvancedElectronicCircuitAfterSplit.Insert(cable); // Insert into the queue for advanced electronic circuits
+                    (new AdvancedElectronicCircuitProductionProcess())->Activate();
+                } else {
+                    copperCableForElectronicCircuit.Insert(cable); // Insert into the queue for electronic circuits
+                }
+
+                CopperCableSplitterToggle = !CopperCableSplitterToggle; // Toggle the flag for the next cable
+            } else {
+                Passivate(); // Wait until a cable appears in the queue
+            }
+        }
+    }
+};
+
 class CopperCableSplitter : public Process {
     void Behavior() override {
         while (1) {
@@ -445,7 +513,7 @@ class CopperCableSplitter : public Process {
                 auto *cable = copperCableQueue.GetFirst();
                 if (!CopperToggleSplitter) {
                     copperCableForAdvancedElectronicCircuit.Insert(cable);
-                    (new AdvancedElectronicCircuitProductionProcess())->Activate();
+                    (new CopperCableSplitterForAdvancedCircuits())->Activate();
                 } else {
                     copperCableForElectronicCircuit.Insert(cable);
                     (new CircuitAssemblyProcess())->Activate();
@@ -718,9 +786,37 @@ int main() {
 
     Run(); // Run the simulation
 
-    // Print results
-    std::cout << "Simulation finished \n\n";
-    best_values();
+    std::cout << "Duration of simulation: " << SIMULATION_TIME << "\n\n";
+
+    // Print all queues
+    std::cout << "Iron ore: " << ironOreQueue.Length() << "\n";
+    std::cout << "Iron plates: " << ironPlateQueue.Length() << "\n";
+    std::cout << "Iron plates for Sulfuric Acid: " << ironPlateQueueForSulfurAfterSplit.Length() << "\n";
+    std::cout << "Iron plates for El.circuit: " << ironPlateQueueForCircuit.Length() << "\n";
+    std::cout << "Copper ore: " << copperOreQueue.Length() << "\n";
+    std::cout << "Copper plates: " << copperPlateQueue.Length() << "\n";
+    std::cout << "Copper cables: " << copperCableQueue.Length() << "\n";
+    std::cout << "Copper cables for El.circuit: " << copperCableForElectronicCircuit.Length() << "\n";
+    std::cout << "Copper cables for Adv.El.circuit: " << copperCableForAdvancedElectronicCircuitAfterSplit.Length() << "\n";
+
+    std::cout << "Electronic circuit queue: " << electronicCircuitQueue.Length() << "\n";
+    std::cout << "Electronic circuit for Adv.El.circuit: " << electronicCircuitQueueForAdvAfterSplit.Length() << "\n";
+    std::cout << "Electronic circuit for Processor: " << electronicCircuitQueueForProcessingUnit.Length() << "\n";
+
+    std::cout << "Coal: " << coalQueue.Length() << "\n";
+    std::cout << "Crude oil for plastic bar: " << crudeOilForPlasticBarQueue.Length() << "\n";
+    std::cout << "Petroleum gas for plastic bar: " << petroleumGasForPlasticBarQueue.Length() << "\n";
+    std::cout << "Plastic bars: " << plasticBarQueue.Length() << "\n";
+
+    std::cout << "Advanced electronic circuits produced: " << advancedElectronicCircuitQueue.Length() << "\n";
+
+    std::cout << "Water units: " << waterQueue.Length() << "\n";
+    std::cout << "Crude oil for sulfur: " << crudeOilForSulfurQueue.Length() << "\n";
+    std::cout << "Petroleum gas for sulfur: " << petroleumGasForSulfurQueue.Length() << "\n";
+    std::cout << "Sulfur: " << sulfurQueue.Length() << "\n";
+    std::cout << "Sulfuric acid: " << sulfuricAcidQueue.Length() << "\n";
+
+    std::cout << "Processors: " << processorQueue.Length() << "\n";
 
     return 0;
 }
