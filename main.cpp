@@ -672,7 +672,8 @@ class ResourceGenerator : public Event {
     }
 };
 
-// TODO: add comments to this function
+// The best_values function calculates and outputs the maximum possible production values of various resources and products over the simulation time.
+// It uses the given constants for the production time and the number of available machines to determine the theoretical maximum output for each resource and product.
 void best_values() {
     int iron_mine_ore = int(SIMULATION_TIME / IRON_MINING_TIME) * NUM_IRON_ORE_DRILLS;
     int iron_smelt_ore = int((SIMULATION_TIME - IRON_MINING_TIME) / IRON_SMELTING_TIME) * NUM_IRON_FURNACES;
@@ -685,6 +686,9 @@ void best_values() {
     int coal = int(SIMULATION_TIME / COAL_MINING_TIME) * NUM_COAL_DRILLS;
     int petroleum_gas_for_plastic = int((SIMULATION_TIME - PUMPJACK_PROCESS_TIME)/OIL_REFINING_TIME) * NUM_OIL_REFINERIES_FOR_PLASTIC_BAR * PETROLEUM_GAS_BATCH ;
     int petroleum_gas_for_sulfur = int((SIMULATION_TIME - PUMPJACK_PROCESS_TIME)/OIL_REFINING_TIME) * NUM_OIL_REFINERIES_FOR_SULFUR * PETROLEUM_GAS_BATCH ;
+    int sulfuric_acid = int((SIMULATION_TIME - PUMPJACK_PROCESS_TIME-OIL_REFINING_TIME - CH_PLANT_TIME) / SULFURIC_ACID_PRODUCTION_TIME) * NUM_SULFURIC_ACID_CHEMICAL_PLANTS * SULFURIC_ACID_BATCH;
+    int advanced_circuit = int((SIMULATION_TIME -PUMPJACK_PROCESS_TIME-OIL_REFINING_TIME - CH_PLANT_TIME ) / ADVANCED_CIRCUIT_PRODUCTION_TIME) * NUM_ADVANCED_CIRCUIT_ASSEMBLERS * ADVANCED_CIRCUIT_BATCH;
+    int processor = int((SIMULATION_TIME -PUMPJACK_PROCESS_TIME-OIL_REFINING_TIME - CH_PLANT_TIME - ADVANCED_CIRCUIT_PRODUCTION_TIME) / PROCESSOR_PRODUCTION_TIME) * NUM_PROCESSOR_ASSEMBLERS * PROCESSOR_BATCH;
     std::cout << "Best values: \n";
     std::cout << "Mining iron ore: " << iron_mine_ore << "\n";
     std::cout << "Smelting iron ore: " << iron_smelt_ore << "\n";
@@ -697,6 +701,9 @@ void best_values() {
     std::cout << "Plastic production: " << plastic << "\n";
     std::cout << "petroleum gas for sulfur production: " << petroleum_gas_for_sulfur << "\n";
     std::cout << "Sulfur production: " << sulfur << "\n";
+    std::cout << "Sulfuric acid production: " << sulfuric_acid << "\n";
+    std::cout << "Advanced electronic circuit production: " << advanced_circuit << "\n";
+    std::cout << "Processor production: " << processor << "\n";
 }
 
 int main() {
