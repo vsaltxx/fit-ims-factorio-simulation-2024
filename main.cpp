@@ -204,7 +204,7 @@ class ProcessorProductionProcess : public Process {
             auto *processor = new ProcessorProcess();
             processorQueue.Insert(processor);
             processors_produced += PROCESSOR_BATCH;
-            if (Time + PROCESSOR_PRODUCTION_TIME <= SIMULATION_TIME && electronicCircuitQueueForProcessingUnit.Length() >= 20 && advancedElectronicCircuitQueue.Length() >= 2 && sulfuricAcidQueue.Length() >= 5 && processorAssembler.Free() > 0) {
+            if (Time + PROCESSOR_PRODUCTION_TIME <= SIMULATION_TIME && electronicCircuitQueueForProcessingUnit.Length() >= MIN_EL_CIRCUITS_FOR_PROCESSOR && advancedElectronicCircuitQueue.Length() >= MIN_ADV_EL_CIRCUITS_FOR_PROCESSOR && sulfuricAcidQueue.Length() >= MIN_SULFURIC_ACID_FOR_PROCESSOR && processorAssembler.Free() > 0) {
                 (new ProcessorProductionProcess())->Activate();
             }
         }
