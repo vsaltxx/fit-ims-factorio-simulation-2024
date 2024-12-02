@@ -786,7 +786,8 @@ int main() {
 
     Run(); // Run the simulation
 
-    std::cout << "Duration of simulation: " << SIMULATION_TIME << "\n\n";
+    std::cout << "Duration of simulation: " << SIMULATION_TIME << "\n";
+    std::cout << "The amount of resources produced during the simulation time: \n \n";
 
     // Print all queues
     std::cout << "Iron ore: " << ironOreQueue.Length() << "\n";
@@ -816,7 +817,7 @@ int main() {
     std::cout << "Sulfur: " << sulfurQueue.Length() << "\n";
     std::cout << "Sulfuric acid: " << sulfuricAcidQueue.Length() << "\n";
 
-    std::cout << "Processors: " << processorQueue.Length() << "\n";
+    std::cout << "Processing units: " << processorQueue.Length() << "\n";
 
     return 0;
 }
